@@ -49,6 +49,10 @@ type (
 	}
 )
 
+func TestServiceBusSuite(t *testing.T) {
+	suite.Run(t, new(ServiceBusSuite))
+}
+
 func (suite *ServiceBusSuite) SetupSuite() {
 	flag.Parse()
 	if *debug {
@@ -192,8 +196,76 @@ func testDuplicateDetection(t *testing.T, sb SenderReceiver, queueName string) {
 	assert.Equal(t, 2, len(received), "should not have more than 2 messages", received)
 }
 
-func TestServiceBusSuite(t *testing.T) {
-	suite.Run(t, new(ServiceBusSuite))
+func (suite *ServiceBusSuite) TestQueueWithRequiredSessions() {
+	tests := map[string]func(*testing.T, SenderReceiver, string){
+		"TestSendAndReceiveSession": testQueueWithRequiredSessionSendAndReceive,
+	}
+
+	for name, testFunc := range tests {
+		setupTestTeardown := func(t *testing.T) {
+			sb := suite.getNewInstance()
+
+			queueName := randomName("gosbtest", 10)
+			defer func() {
+				sb.DeleteQueue(context.Background(), queueName)
+				sb.Close()
+			}()
+
+			window := 3 * time.Minute
+			_, err := sb.EnsureQueue(
+				context.Background(),
+				queueName,
+				QueueWithPartitioning(),
+				QueueWithDuplicateDetection(nil),
+				QueueWithLockDuration(&window),
+				QueueWithRequiredSessions())
+			if err != nil {
+				log.Fatalln(err)
+			}
+
+			testFunc(t, sb, queueName)
+
+			time.Sleep(5 * time.Second)
+			q, err := sb.GetQueue(context.Background(), queueName)
+			assert.Zero(t, *q.CountDetails.ActiveMessageCount, "message count for queue should be zero")
+		}
+
+		suite.T().Run(name, setupTestTeardown)
+	}
+}
+
+func testQueueWithRequiredSessionSendAndReceive(t *testing.T, sb SenderReceiver, queueName string) {
+	sessionID := uuid.NewV4().String()
+	numMessages := rand.Intn(100) + 20
+	var wg sync.WaitGroup
+	wg.Add(numMessages + 1)
+	messages := make([]string, numMessages)
+	for i := 0; i < numMessages; i++ {
+		messages[i] = randomName("hello", 10)
+	}
+
+	go func() {
+		for idx, message := range messages {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			err := sb.Send(ctx, queueName, &amqp.Message{Data: []byte(message)}, SendWithSession(sessionID, uint32(idx)))
+			cancel()
+			if err != nil {
+				log.Fatalln(err)
+			}
+		}
+		defer wg.Done()
+	}()
+
+	// ensure in-order processing of messages from the queue
+	count := 0
+	handler := func(ctx context.Context, msg *amqp.Message) error {
+		assert.Equal(t, messages[count], string(msg.Data))
+		count++
+		wg.Done()
+		return nil
+	}
+	sb.Receive(queueName, handler, ReceiverWithSession(sessionID))
+	wg.Wait()
 }
 
 func TestCreateFromConnectionString(t *testing.T) {
@@ -275,7 +347,7 @@ func (suite *ServiceBusSuite) getRmGroupClient() *rm.GroupsClient {
 	return &groupsClient
 }
 
-func (suite *ServiceBusSuite) getServiceBusNamespaceClient() *sbmgmt.NamespacesClient {
+func (suite *ServiceBusSuite) getNamespaceClient() *sbmgmt.NamespacesClient {
 	nsClient := sbmgmt.NewNamespacesClient(suite.SubscriptionID)
 	nsClient.Authorizer = autorest.NewBearerAuthorizer(suite.Token)
 	return &nsClient
@@ -289,7 +361,7 @@ func (suite *ServiceBusSuite) ensureProvisioned(tier sbmgmt.SkuTier) error {
 		return err
 	}
 
-	nsClient := suite.getServiceBusNamespaceClient()
+	nsClient := suite.getNamespaceClient()
 	_, err = nsClient.Get(context.Background(), ResourceGroupName, suite.Namespace)
 	if err != nil {
 		ns := sbmgmt.SBNamespace{

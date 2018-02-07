@@ -10,7 +10,7 @@ type (
 	// session is a wrapper for the AMQP session with some added information to help with Service Bus messaging
 	session struct {
 		*amqp.Session
-		SessionID uuid.UUID
+		SessionID string
 		counter   uint32
 	}
 )
@@ -19,7 +19,7 @@ type (
 func newSession(amqpSession *amqp.Session) *session {
 	return &session{
 		Session:   amqpSession,
-		SessionID: uuid.NewV4(),
+		SessionID: uuid.NewV4().String(),
 		counter:   0,
 	}
 }
@@ -30,5 +30,5 @@ func (s *session) getNext() uint32 {
 }
 
 func (s *session) String() string {
-	return s.SessionID.String()
+	return s.SessionID
 }

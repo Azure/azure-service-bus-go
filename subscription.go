@@ -110,6 +110,16 @@ func (sb *serviceBus) EnsureSubscription(ctx context.Context, topicName, name st
 	return &subscription, nil
 }
 
+// GetSubscription fetches a topic by name
+func (sb *serviceBus) GetSubscription(ctx context.Context, topicName, name string) (*mgmt.SBSubscription, error) {
+	client := sb.getSubscriptionMgmtClient()
+	subscription, err := client.Get(ctx, sb.resourceGroup, sb.namespace, topicName, name)
+	if err != nil {
+		return nil, err
+	}
+	return &subscription, nil
+}
+
 // DeleteSubscription deletes an existing subscription
 func (sb *serviceBus) DeleteSubscription(ctx context.Context, topicName, name string) error {
 	subscriptionClient := sb.getSubscriptionMgmtClient()

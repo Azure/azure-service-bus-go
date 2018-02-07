@@ -78,11 +78,14 @@ func (sb *serviceBus) ensureCbsLink() error {
 }
 
 func (sb *serviceBus) negotiateClaim(entityPath string) error {
-	sb.ensureCbsLink()
+	err := sb.ensureCbsLink()
+	if err != nil {
+		return err
+	}
 	sb.cbsLink.negotiateMu.Lock()
 	defer sb.cbsLink.negotiateMu.Unlock()
 
-	name := "amqp://" + sb.namespace + ".servicebus.windows.net/" + entityPath
+	name := sb.getEntityAudience(entityPath)
 	log.Debugf("sending to: %s, expiring on: %q, via: %s", name, sb.sbToken.ExpiresOn, sb.cbsLink.clientAddress)
 	msg := &amqp.Message{
 		Value: sb.sbToken.AccessToken,
@@ -97,7 +100,7 @@ func (sb *serviceBus) negotiateClaim(entityPath string) error {
 		},
 	}
 
-	_, err := retry(3, 1*time.Second, func() (interface{}, error) {
+	_, err = retry(3, 1*time.Second, func() (interface{}, error) {
 		log.Debugf("Attempting to negotiate cbs for %s in namespace %s", entityPath, sb.namespace)
 		err := sb.cbsLink.send(context.Background(), msg)
 		if err != nil {

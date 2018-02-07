@@ -15,6 +15,9 @@ type (
 		entityPath string
 		Name       string
 	}
+
+	// SendOption provides a way to customize a message on sending
+	SendOption func(message *amqp.Message) error
 )
 
 // newSender creates a new Service Bus message sender given an AMQP client and entity path
@@ -67,7 +70,10 @@ func (s *sender) Send(ctx context.Context, msg *amqp.Message, opts ...SendOption
 	// TODO: Add in recovery logic in case the link / session has gone down
 	s.prepareMessage(msg)
 	for _, opt := range opts {
-		opt(msg)
+		err := opt(msg)
+		if err != nil {
+			return err
+		}
 	}
 
 	log.Debugf("sending message...")
@@ -88,8 +94,7 @@ func (s *sender) prepareMessage(msg *amqp.Message) {
 	}
 
 	if msg.Properties.GroupID == "" {
-		msg.Properties.GroupID = s.session.String()
-		msg.Properties.GroupSequence = s.session.getNext()
+		SendWithSession(s.session.String(), s.session.getNext())(msg)
 	}
 }
 
@@ -117,13 +122,20 @@ func (s *sender) newSessionAndLink() error {
 	return nil
 }
 
-// SendOption provides a way to customize a message on sending
-type SendOption func(message *amqp.Message) error
-
 // SendWithMessageID provides an option of adding a message ID for the sent message
 func SendWithMessageID(msgID interface{}) SendOption {
 	return func(msg *amqp.Message) error {
 		msg.Properties.MessageID = msgID
+		return nil
+	}
+}
+
+// SendWithSession configures the message to send with a specific session and sequence. By default, a sender has a
+// default session (uuid.NewV4()) and sequence generator.
+func SendWithSession(sessionID string, sequence uint32) SendOption {
+	return func(msg *amqp.Message) error {
+		msg.Properties.GroupID = sessionID
+		msg.Properties.GroupSequence = sequence
 		return nil
 	}
 }

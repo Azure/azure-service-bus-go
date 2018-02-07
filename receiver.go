@@ -2,7 +2,6 @@ package servicebus
 
 import (
 	"context"
-	"github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
 	"net"
 	"pack.ag/amqp"
@@ -12,22 +11,33 @@ import (
 // receiver provides session and link handling for a receiving entity path
 type (
 	receiver struct {
-		sb         *serviceBus
-		session    *session
-		receiver   *amqp.Receiver
-		entityPath string
-		done       chan struct{}
-		Name       uuid.UUID
+		sb                *serviceBus
+		session           *session
+		receiver          *amqp.Receiver
+		entityPath        string
+		done              chan struct{}
+		Name              string
+		requiredSessionID *string
 	}
+
+	// ReceiverOptions provides a structure for configuring receivers
+	ReceiverOptions func(receiver *receiver) error
 )
 
 // newReceiver creates a new Service Bus message listener given an AMQP client and an entity path
-func (sb *serviceBus) newReceiver(entityPath string) (*receiver, error) {
+func (sb *serviceBus) newReceiver(entityPath string, opts ...ReceiverOptions) (*receiver, error) {
 	receiver := &receiver{
 		sb:         sb,
 		entityPath: entityPath,
 		done:       make(chan struct{}),
 	}
+
+	for _, opt := range opts {
+		if err := opt(receiver); err != nil {
+			return nil, err
+		}
+	}
+
 	err := receiver.newSessionAndLink()
 	if err != nil {
 		return nil, err
@@ -148,15 +158,32 @@ func (r *receiver) newSessionAndLink() error {
 		return err
 	}
 
-	amqpReceiver, err := amqpSession.NewReceiver(
+	r.session = newSession(amqpSession)
+
+	opts := []amqp.LinkOption{
 		amqp.LinkSourceAddress(r.entityPath),
-		amqp.LinkCredit(10))
+		amqp.LinkCredit(10),
+	}
+
+	// TODO: fix this with after SB team replies with bug fix for session filters
+	//if r.requiredSessionID != nil {
+	//	opts = append(opts, amqp.LinkSourceFilterString("com.microsoft:session-filter", *r.requiredSessionID))
+	//	r.session.SessionID = *r.requiredSessionID
+	//}
+
+	amqpReceiver, err := amqpSession.NewReceiver(opts...)
 	if err != nil {
 		return err
 	}
 
-	r.session = newSession(amqpSession)
 	r.receiver = amqpReceiver
-
 	return nil
+}
+
+// ReceiverWithSession configures a receiver to use a session
+func ReceiverWithSession(sessionID string) ReceiverOptions {
+	return func(r *receiver) error {
+		r.requiredSessionID = &sessionID
+		return nil
+	}
 }

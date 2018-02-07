@@ -20,8 +20,8 @@
     "autorest/to",
     "autorest/validation"
   ]
-  revision = "d4e6b95c12a08b4de2d48b45d5b4d594e5d32fab"
-  version = "v9.9.0"
+  revision = "fc3b03a2d2d1f43fad3007038bd16f044f870722"
+  version = "v9.10.0"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -73,7 +73,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "1875d0a70c90e57f11972aefd42276df65e895b9"
+  revision = "d9133f5469342136e669e85192a26056b587f503"
 
 [[projects]]
   branch = "master"
@@ -82,7 +82,7 @@
     "unix",
     "windows"
   ]
-  revision = "8f27ce8a604014414f8dfffc25cbcde83a3f2216"
+  revision = "37707fdb30a5b38865cfb95e5aab41707daec7fd"
 
 [[projects]]
   branch = "master"
@@ -91,7 +91,7 @@
     ".",
     "internal/testconn"
   ]
-  revision = "156a96cbd71de6a80dd774d60de212f31c7272c7"
+  revision = "27cb779d7cf5d6e8ae9ee873eb3ffb5c7073b5d4"
 
 [solve-meta]
   analyzer-name = "dep"

@@ -33,7 +33,7 @@ var (
 type (
 	SenderReceiver interface {
 		Send(ctx context.Context, entityPath string, msg *amqp.Message, opts ...SendOption) error
-		Receive(entityPath string, handler Handler) error
+		Receive(entityPath string, handler Handler, opts ...ReceiverOptions) error
 		Close() error
 	}
 
@@ -41,9 +41,12 @@ type (
 	EntityManager interface {
 		EnsureQueue(ctx context.Context, name string, opts ...QueueOption) (*mgmt.SBQueue, error)
 		DeleteQueue(ctx context.Context, name string) error
+		GetQueue(ctx context.Context, name string) (*mgmt.SBQueue, error)
 		EnsureTopic(ctx context.Context, name string, opts ...TopicOption) (*mgmt.SBTopic, error)
 		DeleteTopic(ctx context.Context, name string) error
+		GetTopic(ctx context.Context, name string) (*mgmt.SBTopic, error)
 		EnsureSubscription(ctx context.Context, topicName, name string, opts ...SubscriptionOption) (*mgmt.SBSubscription, error)
+		GetSubscription(ctx context.Context, topicName, name string) (*mgmt.SBSubscription, error)
 		DeleteSubscription(ctx context.Context, topicName, name string) error
 	}
 
@@ -166,11 +169,11 @@ func (sb *serviceBus) Close() error {
 }
 
 // Listen subscribes for messages sent to the provided entityPath.
-func (sb *serviceBus) Receive(entityPath string, handler Handler) error {
+func (sb *serviceBus) Receive(entityPath string, handler Handler, opts ...ReceiverOptions) error {
 	sb.receiverMu.Lock()
 	defer sb.receiverMu.Unlock()
 
-	receiver, err := sb.newReceiver(entityPath)
+	receiver, err := sb.newReceiver(entityPath, opts...)
 	if err != nil {
 		return err
 	}
@@ -195,7 +198,7 @@ func (sb *serviceBus) connection() (*amqp.Client, error) {
 	defer sb.clientMu.Unlock()
 
 	if sb.client == nil && sb.claimsBasedSecurityEnabled() {
-		host := getHostName(sb.namespace)
+		host := sb.getAmqpHostURI()
 		client, err := amqp.Dial(host, amqp.ConnSASLAnonymous(), amqp.ConnMaxSessions(65535))
 		if err != nil {
 			return nil, err
@@ -285,8 +288,12 @@ func newParsedConnection(host string, keyName string, key string) (*parsedConn, 
 	}, nil
 }
 
-func getHostName(namespace string) string {
-	return fmt.Sprintf("amqps://%s.%s", namespace, "servicebus.windows.net")
+func (sb *serviceBus) getAmqpHostURI() string {
+	return fmt.Sprintf("amqps://%s.%s/", sb.namespace, sb.environment.ServiceBusEndpointSuffix)
+}
+
+func (sb *serviceBus) getEntityAudience(entityPath string) string {
+	return sb.getAmqpHostURI() + entityPath
 }
 
 // claimsBasedSecurityEnabled indicates that the connection will use AAD JWT RBAC to authenticate in connections
@@ -295,11 +302,11 @@ func (sb *serviceBus) claimsBasedSecurityEnabled() bool {
 }
 
 func getArmTokenProvider(credential ServicePrincipalCredentials, env azure.Environment) (*adal.ServicePrincipalToken, error) {
-	return getTokenProvider(azure.PublicCloud.ResourceManagerEndpoint, credential, env)
+	return getTokenProvider(env.ResourceManagerEndpoint, credential, env)
 }
 
 func getServiceBusTokenProvider(credential ServicePrincipalCredentials, env azure.Environment) (*adal.ServicePrincipalToken, error) {
-	return getTokenProvider("https://servicebus.azure.net/", credential, env)
+	return getTokenProvider(env.ServiceBusEndpoint, credential, env)
 }
 
 func getTokenProvider(resourceURI string, cred ServicePrincipalCredentials, env azure.Environment) (*adal.ServicePrincipalToken, error) {

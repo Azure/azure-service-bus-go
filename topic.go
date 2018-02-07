@@ -136,6 +136,16 @@ func (sb *serviceBus) EnsureTopic(ctx context.Context, name string, opts ...Topi
 	return &topic, nil
 }
 
+// GetTopic fetches a topic by name
+func (sb *serviceBus) GetTopic(ctx context.Context, name string) (*mgmt.SBTopic, error) {
+	client := sb.getTopicMgmtClient()
+	topic, err := client.Get(ctx, sb.resourceGroup, sb.namespace, name)
+	if err != nil {
+		return nil, err
+	}
+	return &topic, nil
+}
+
 // DeleteTopic deletes an existing topic
 func (sb *serviceBus) DeleteTopic(ctx context.Context, topicName string) error {
 	topicClient := sb.getTopicMgmtClient()

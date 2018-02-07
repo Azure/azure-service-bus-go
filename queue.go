@@ -160,6 +160,16 @@ func (sb *serviceBus) DeleteQueue(ctx context.Context, queueName string) error {
 	return err
 }
 
+// GetQueue fetches a queue by name
+func (sb *serviceBus) GetQueue(ctx context.Context, name string) (*mgmt.SBQueue, error) {
+	client := sb.getQueueMgmtClient()
+	queue, err := client.Get(ctx, sb.resourceGroup, sb.namespace, name)
+	if err != nil {
+		return nil, err
+	}
+	return &queue, nil
+}
+
 func (sb *serviceBus) getQueueMgmtClient() mgmt.QueuesClient {
 	client := mgmt.NewQueuesClientWithBaseURI(sb.environment.ResourceManagerEndpoint, sb.subscriptionID)
 	client.Authorizer = autorest.NewBearerAuthorizer(sb.armToken)
