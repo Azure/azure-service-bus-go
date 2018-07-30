@@ -26,7 +26,7 @@ func ExampleQueue_scheduledMessage() {
 	defer cancel()
 
 	// Initialize and create a Service Bus Queue named helloworld if it doesn't exist
-	q, err := ns.NewQueue(ctx, "helloworld", servicebus.QueueWithReceiveAndDelete())
+	q, err := ns.NewQueue("helloworld", servicebus.QueueWithReceiveAndDelete())
 	if err != nil {
 		fmt.Printf("error: %v\n", err)
 		return

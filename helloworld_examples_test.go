@@ -119,7 +119,7 @@ func getQueue(ctx context.Context, ns *servicebus.Namespace, queueName string) (
 		}
 	}
 
-	q, err := ns.NewQueue(ctx, queueName)
+	q, err := ns.NewQueue(queueName)
 	return q, err
 }
 
