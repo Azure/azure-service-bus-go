@@ -17,12 +17,12 @@ distributed message tracing.
 ## Viewing the Traces with Jaeger
 Open the [Jaeger UI via http://0.0.0.0:16686](http://0.0.0.0:16686/search). You should 
 be able to select the service `opentracing_example`. Select that service from the list.
-![service selection](./_images/service-selection.png) 
+![service selection](./service-selection.png) 
 
 ### Find Traces
 Click on `Find Traces` to see the root traces from the example execution. You should
 see something like the following image.
-![find traces](./_images/find-traces.png)
+![find traces](./find-traces.png)
 
 ### Sending a Message
 Click on `sb.Queue.Send` to see what happens when we send a message. Most operations in
@@ -34,18 +34,18 @@ authorization. Upon successful negotiation, the message is transmitted to the qu
 The message is then consumed by a receiver.
 
 You should see an image like below when clicking on `sb.Queue.Send`
-![send trace](./_images/send-trace.png)
+![send trace](./send-trace.png)
 
 #### Transmitting a Message
 If you now expand `sb.sender.trySendTransmit` to explore send operation details. You will
 see an image similar to the one below, which provides meta information about the message and
 destination.
-![transmit](./_images/transmit.png)
+![transmit](./transmit.png)
 
 ### Receiving a Message
 If you now expand `sb.Message.Accept` you should see meta information about the message as it
 is being accepted by the receive handler.
-![accept disposition](./_images/accept-disposition.png)
+![accept disposition](./accept-disposition.png)
 
 ## Summary
 The above example shows how simply enabling OpenTracing collection and configuring

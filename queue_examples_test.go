@@ -9,6 +9,40 @@ import (
 	servicebus "github.com/Azure/azure-service-bus-go"
 )
 
+func ExampleQueue_getOrBuildQueue() {
+	const queueName = "myqueue"
+
+	connStr := mustGetenv("SERVICEBUS_CONNECTION_STRING")
+	ns, err := servicebus.NewNamespace(servicebus.NamespaceWithConnectionString(connStr))
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	qm := ns.NewQueueManager()
+	qe, err := qm.Get(ctx, queueName)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	if qe == nil {
+		_, err := qm.Put(ctx, queueName)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
+
+	q, err := ns.NewQueue(queueName)
+
+	fmt.Println(q.Name)
+	// Output: myqueue
+}
+
 func ExampleQueue_scheduledMessage() {
 	connStr := os.Getenv("SERVICEBUS_CONNECTION_STRING")
 	ns, err := servicebus.NewNamespace(servicebus.NamespaceWithConnectionString(connStr))
