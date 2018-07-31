@@ -10,9 +10,9 @@ distributed message tracing.
 ## To Run
 - Start a Jaeger tracing service via docker:
   - `id=$(docker run -d -e COLLECTOR_ZIPKIN_HTTP_PORT=9411 -p 5775:5775/udp -p 6831:6831/udp -p 6832:6832/udp -p 5778:5778 -p 16686:16686 -p 14268:14268 -p 9411:9411 jaegertracing/all-in-one:latest)`
-- From this directory execute:
-  - `SERVICEBUS_CONNECTION_STRING='your-SB-conn-string' go run main.go`
-- You should see "Hello World!" printed on the screen and the process should exit
+- From the project's root directory execute:
+  - `SERVICEBUS_CONNECTION_STRING='your-SB-conn-string' go test -run ^Example_opentracing$ .`
+- The test should execute and pass, taking just a few seconds. 
 
 ## Viewing the Traces with Jaeger
 Open the [Jaeger UI via http://0.0.0.0:16686](http://0.0.0.0:16686/search). You should 
