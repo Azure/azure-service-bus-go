@@ -91,9 +91,6 @@ func main() {
 }
 ```
 
-## Examples
-- [OpenTracing Support](./_examples/opentracing): an example of how to enable distributed tracing using [OpenTracing](http://opentracing.io)
-
 # Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
