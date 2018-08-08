@@ -569,10 +569,10 @@ func testQueueSendAndReceiveScheduled(ctx context.Context, t *testing.T, queue *
 	}
 
 	// The delay to schedule a message for.
-	const waitTime = 3 * time.Minute
+	const waitTime = time.Duration(3 * time.Minute)
 	// Service Bus guarentees roughly a one minute window. So that our tests aren't flakey, we'll give them
 	// a buffer on either side.
-	const buffer = 40 * time.Second
+	const buffer = time.Duration(40 * time.Second)
 	const min, max = waitTime - buffer, waitTime + buffer
 
 	msg := NewMessageFromString("to the future!!")
@@ -586,12 +586,11 @@ func testQueueSendAndReceiveScheduled(ctx context.Context, t *testing.T, queue *
 		listener, err := queue.Receive(ctx, func(ctx context.Context, received *Message) DispositionAction {
 			defer wg.Done()
 
-			const buffer = 40 * time.Second
 			arrivalTime := time.Now()
 
 			delay := arrivalTime.Sub(futureTime)
-			assert.True(t, delay >= min)
-			assert.True(t, delay <= max)
+			assert.True(t, delay >= min, "message delivered too soon, expected %v actual %v", waitTime, delay)
+			assert.True(t, delay <= max, "message delivered too late, expected %v actual %v", waitTime, delay)
 			return received.Complete()
 		})
 		if assert.NoError(t, err) {
