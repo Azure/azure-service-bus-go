@@ -1,5 +1,5 @@
 language: go
-sudo: false
+sudo: required
 go:
 - 1.x
 - 1.9.x
@@ -12,6 +12,11 @@ before_install:
 - go get -u golang.org/x/lint/golint
 - wget https://releases.hashicorp.com/terraform/0.11.8/terraform_0.11.8_linux_amd64.zip
 - unzip terraform_0.11.8_linux_amd64.zip
+- sudo mv ./terraform /usr/local/bin
+- echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/azure-cli.list
+- curl -L https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+- sudo apt-get update
+- sudo apt-get install apt-transport-https azure-cli
 jobs:
   include:
   - stage: integration tests
@@ -23,6 +28,7 @@ jobs:
     - secure: edUBlEkv7opAMPFkugmYvnaNSNJ/wRcULHmPB7zqPLnQaJxAdlr7QqVifiWOGaC5S7bxw8NifO85cfHPtTScuCLLIg6zE/YuQuZ4AOmeIX5k+111Mdlzyy7TFGr4PA/6NoxqEHM7FD2ILL/5MVME7i4zYT8XRB9t1sCCV2zOMqvkNkdN8aAHpYrHc2CSzLegjN4APlmQQlISx0+f0SbcCwIGGDciOVR65Qq9sDTOWSfv1BV2otKxrxH6kBXqggNrstJ4EDKsamlp2Zmf25RXn48u3TbeNaWU825XzG3kQxbYUlsl49kjxOdoXnrPDqB0gHSIWeZPpBGsxdmgYg1m/ubh8Sybg0+CiYpYk3h9TualDep2S+F3yJpmfWip+3LZYbK4yoXnypltBdyyrygt2dZ4LyUQoeuiA5iaBRBixj37ZyIUGO7ruij3k4GBvtXtQ5/YCre7sw0NhfO1jGnp7LybWBuTqYy6rqyPStmdw5TNWIWNclLWChp/foDSVwnNidYfsIpzsJwWFXezNI5CPwjQoNk72bq+63k36u5xxO+C8PYGdAvOZNTDVkeLYPv6kaelQB30OHPQBuDlL344PqezCKy9XGX+6xCr+N9ZZOsSBV5Rf4+T5h1BJsLv36VYT4H9F9v/Vo3wc93s831mZyDppfUxUOCiuPEKdG4A5ps=
     - secure: b7QFVNJ+13JuuFuvvebsborLD+T6FEBlBDK7vYUYQb/vA4xcgvTNWs8PmsUEZKgMBgCAerkLQvYy1m69XRPJfimF/iYLuEDF49cgOubg3RO8heyH/o51/J//BA6EU0zbLho6HEdz2z8PMffQE6bvecLd4VI0pAdfzX4r3mbbqpfLtkSyOBmLDrHGIq/u+xAJOusR44SFNLUrnrFi9j2mCFCnEMxcdIeGj2ix7ZDYViO/9rxWvrKNi/cWj48J3CLGiDDrna36ckHAqTpqsFjIPYnfAI/S1SM+S/IGqCvZO4ztmJw/LXUB8jMcVPyi80H7YZy583RXtcIHsx4bptCuYnhFXRFAky3lC3Bj8dPagMlSWAyOu5W3jfs01VE9LMcTn1SVvqkQczgc2+xFOtfbUuWQlCRzvpaPhd7ViSKrBN3X2y4+ph+h1IsIT3Nq6zQQYfkdYO0MifydRFKemoid43OZ8S2U55EDkrknCMDdy1khf94QlUVKbRSaCuw9OT5qiojJDW9HeKQHwc6XdxCkQtTI94XaBj4jMpLFd/sw6MmXdzUC2FB/XJZvO1RvOSUeK2FPWQaTbSkypbrBastb5hiF5SG1SX7kVcfgr6vHFS099A9U8qbgbdXO7Hku1rhK9f8fPInt261roWPg161OHAcOcqruzSWkFDX5+adrEMc=
     script:
+    - az login --tenant $AZURE_TENANT_ID --service-principal --username $AZURE_CLIENT_ID --password $AZURE_CLIENT_SECRET
     - make test-cover
     - goveralls -coverprofile=cover.out -service=travis-ci
 script:
