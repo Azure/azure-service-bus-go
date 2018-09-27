@@ -32,6 +32,7 @@ jobs:
     - export ARM_CLIENT_ID=$(echo $AZURE_CLIENT_ID)
     - export ARM_CLIENT_SECRET=$(echo $AZURE_CLIENT_SECRET)
     - export ARM_TENANT_ID=$(echo $AZURE_TENANT_ID)
+    - export TEST_SERVICEBUS_RESOURCE_GROUP=$(echo $TF_VAR_resource_group_name)
     - make test-cover
     - goveralls -coverprofile=cover.out -service=travis-ci
 script:
