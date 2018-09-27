@@ -1,5 +1,5 @@
 language: go
-sudo: required
+sudo: false
 go:
 - 1.x
 - 1.9.x
@@ -10,14 +10,6 @@ before_install:
 - go get github.com/golang/dep/cmd/dep
 - go get honnef.co/go/tools/cmd/megacheck
 - go get -u golang.org/x/lint/golint
-- wget https://releases.hashicorp.com/terraform/0.11.8/terraform_0.11.8_linux_amd64.zip
-- unzip terraform_0.11.8_linux_amd64.zip
-- sudo mv ./terraform /usr/local/bin
-- echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ $(lsb_release
-  -cs) main" | sudo tee /etc/apt/sources.list.d/azure-cli.list
-- curl -L https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
-- sudo apt-get update
-- sudo apt-get install apt-transport-https azure-cli
 jobs:
   include:
   - stage: integration tests
@@ -31,7 +23,15 @@ jobs:
     - secure: gMzZrG2Yte4K0l8+c7XZxEZoJXVgfeBh7J2gIs5xGSOhJFvNeeAHrfkB8QRUk8+jKDro/W5J1JweOqUL59euoC9NCF4MMeflnoIHYKAoZ97tOcvkPNLda8Azn191RM9iJWPyANBMp05pyYr51X8bxD1fwvk0Ur2Dp8/VLX/GcDX5wFXD6xR8fZrX+fdmlS/s5eQtdNfjtxG7v2XIcfuYtdR6j8w4itRcUKxo3T+B9hp/PLosXIyNAuP3IyhdYjyUYuFxCFQb9UrzEdHLh234LaPmUuHSXmFgP6zsq0M+l5C5fGfsjRcGPImCMhxrmmfRif9xl+5YO8r5JGCI4VL29V8Xi4B8OLTCqp8UgKiPYZ48jeWfc0SBJnXHo77azrDNcUJ+hxciSqG0yXYTBQpZnPaM2ybJ6lazVvudUoViYLN7LIQcqKSmBvx/XbQBPrhB/T8S3qMiHMEbVV2l47O/FKRd6xJxo0Qoe0btkzClazOMpX7Ev9RP4PcdWJLj5D99sIIoo+fr6j2NE/R8i8pDUEegzh/UTVfYKAg0+ECmNAk60E0PvUeM34qKMQGP6gThK9ema94+CAjZ/kaERZEPxmrvdeHXr3Aj2WTPPL0ET5zJ1KLW46b6DfwnB33Lj8uPkk1X8H48JB0+XBXzL83CNTEZpul6WhvpltddLh/i96M=
     - secure: IkQmMlUiieUnBxE+/Lgsvgjkv33JGUFturvRpIOxME2vynqLKjJf6MOUVVMSaeqtt21Gz6mnRh68hxWpeILQK8vQ0Ar27KMseZaoyctceCrPaz9smYgLTM/O2K6d30Ao37jFGRQs74QgbE8jfsVJzp3mWynRaF0fNLZbfBJo6SgtCvoGs+dVUQp+35bFEsTTBVPZTskEltLe6KJLbg3paxaKYQxC0Msp5iCxqmD4Sx2v/ljyaWVS+BNapvlS85DFNhG3YD1oMq35QuVsgOuptWbw8W//QKMAtO01p1O5mvRKh6FQJAWBgnvRuvlCB4wW9rFpHS62etjoWX6g2NJgKSZvJff4/hscN0lh0iiCLIlcdAMlgWVjbxBv6VzzukCweZU+Nc4MbcId3jSjIB8n0dczYo5fCy2v1NK88IxiLUsKntCxi7TTIDCD/zsHwoLbt/pWaqYmlwyp2cTv9kLwh4Gs4g98kT8HzzCGb/lzJ3TOx4yCaOSoY0snR2rwkO8GKkKKVc0W1vDedf16arcJ77+1zqLb8XW4OFbug05cvZPkpMkPMtFvRI0novHHrkn7kmo3g9l985/r+XwJ4Np4fuaUXU+TO2HPU0wiT29IrWouyFzPljsGPB33Xpin/MCkZVGD+dKqlGJqfe4KPuaTnM3/189W9D/PDhDs5uY13rg=
     script:
-    - az login --tenant $AZURE_TENANT_ID --service-principal --username $AZURE_CLIENT_ID --password $AZURE_CLIENT_SECRET
+    - curl -sLo /tmp/terraform.zip https://releases.hashicorp.com/terraform/0.11.8/terraform_0.11.8_linux_amd64.zip
+    - unzip /tmp/terraform.zip -d /tmp
+    - mkdir -p ~/bin
+    - mv /tmp/terraform ~/bin
+    - export PATH="~/bin:$PATH"
+    - export ARM_SUBSCRIPTION_ID=$(echo $AZURE_SUBSCRIPTION_ID)
+    - export ARM_CLIENT_ID=$(echo $AZURE_CLIENT_ID)
+    - export ARM_CLIENT_SECRET=$(echo $AZURE_CLIENT_SECRET)
+    - export ARM_TENANT_ID=$(echo $AZURE_TENANT_ID)
     - make test-cover
     - goveralls -coverprofile=cover.out -service=travis-ci
 script:
