@@ -100,7 +100,7 @@ func (sm *SubscriptionManager) Put(ctx context.Context, name string, opts ...Sub
 			AtomSchema: atomSchema,
 		},
 		Content: &subscriptionContent{
-			Type:                    applicationXML,
+			Type: applicationXML,
 			SubscriptionDescription: *sd,
 		},
 	}
@@ -202,7 +202,7 @@ func (sm *SubscriptionManager) Get(ctx context.Context, name string) (*Subscript
 func subscriptionEntryToEntity(entry *subscriptionEntry) *SubscriptionEntity {
 	return &SubscriptionEntity{
 		SubscriptionDescription: &entry.Content.SubscriptionDescription,
-		Name:                    entry.Title,
+		Name: entry.Title,
 	}
 }
 

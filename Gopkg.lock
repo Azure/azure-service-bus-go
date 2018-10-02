@@ -172,15 +172,15 @@
   revision = "f9ce57c11b242f0f1599cf25c89d8cb02c45295a"
 
 [[projects]]
-  digest = "1:efd7f4a2c3339485190142d3b83052207aaadf6e4e724fdbac79a5de0a8120c5"
+  digest = "1:4739800ec9c08baa4abefa388a31ff74d9e3b3a9cf112fe312332c6e6c3d119d"
   name = "pack.ag/amqp"
   packages = [
     ".",
     "internal/testconn",
   ]
   pruneopts = "UT"
-  revision = "f04efab52fd05cbd1b25280ae54423fc7b12e267"
-  version = "v0.7.3"
+  revision = "271d6282f59cd10184fef147de589cce8ad69c93"
+  version = "v0.7.4"
 
 [solve-meta]
   analyzer-name = "dep"
@@ -205,6 +205,7 @@
     "github.com/mitchellh/mapstructure",
     "github.com/opentracing/opentracing-go",
     "github.com/opentracing/opentracing-go/ext",
+    "github.com/opentracing/opentracing-go/log",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/suite",
     "github.com/uber/jaeger-client-go",
