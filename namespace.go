@@ -24,6 +24,7 @@ package servicebus
 
 import (
 	"context"
+	"fmt"
 	"runtime"
 
 	"github.com/Azure/azure-amqp-common-go/auth"
@@ -60,9 +61,6 @@ type (
 		TokenProvider auth.TokenProvider
 		Environment   azure.Environment
 	}
-
-	// Handler is the function signature for any receiver of AMQP messages
-	Handler func(context.Context, *Message) DispositionAction
 
 	// NamespaceOption provides structure for configuring a new Service Bus namespace
 	NamespaceOption func(h *Namespace) error
@@ -125,11 +123,11 @@ func (ns *Namespace) negotiateClaim(ctx context.Context, conn *amqp.Client, enti
 }
 
 func (ns *Namespace) getAMQPHostURI() string {
-	return "amqps://" + ns.Name + "." + ns.Environment.ServiceBusEndpointSuffix + "/"
+	return fmt.Sprintf("amqps://%s.%s/", ns.Name, ns.Environment.ServiceBusEndpointSuffix)
 }
 
 func (ns *Namespace) getHTTPSHostURI() string {
-	return "https://" + ns.Name + "." + ns.Environment.ServiceBusEndpointSuffix + "/"
+	return fmt.Sprintf("https://%s.%s/", ns.Name, ns.Environment.ServiceBusEndpointSuffix)
 }
 
 func (ns *Namespace) getEntityAudience(entityPath string) string {

@@ -4,7 +4,7 @@ VERSION ?= $(shell git describe --tags --always --dirty --match=v* 2> /dev/null 
 			cat $(CURDIR)/.version 2> /dev/null || echo v0)
 BIN      = $(GOPATH)/bin
 BASE     = $(GOPATH)/src/$(PACKAGE)
-PKGS     = $(or $(PKG),$(shell cd $(BASE) && env GOPATH=$(GOPATH) $(GO) list ./... | grep -vE "^$(PACKAGE)/vendor|_examples|templates/"))
+PKGS     = $(or $(PKG),$(shell cd $(BASE) && env GOPATH=$(GOPATH) $(GO) list ./... | grep -vE "^$(PACKAGE)/vendor|templates/"))
 TESTPKGS = $(shell env GOPATH=$(GOPATH) $(GO) list -f '{{ if or .TestGoFiles .XTestGoFiles }}{{ .ImportPath }}{{ end }}' $(PKGS))
 GO_FILES = find . -iname '*.go' -type f | grep -v /vendor/
 
@@ -17,10 +17,10 @@ DEP   	= dep
 V = 0
 Q = $(if $(filter 1,$V),,@)
 M = $(shell printf "\033[34;1m▶\033[0m")
-TIMEOUT = 300
+TIMEOUT = 500
 
 .PHONY: all
-all: fmt vendor lint vet megacheck examples ; $(info $(M) building library…) @ ## Build program
+all: fmt vendor lint vet megacheck ; $(info $(M) building library…) @ ## Build program
 	$Q cd $(BASE) && $(GO) build -tags release
 
 # Tools
@@ -40,7 +40,7 @@ test-race:    ARGS=-race         							## Run tests with race detector
 test-cover:   ARGS=-cover -coverprofile=cover.out -v     	## Run tests in verbose mode with coverage
 $(TEST_TARGETS): NAME=$(MAKECMDGOALS:test-%=%)
 $(TEST_TARGETS): test
-check test tests: cyclo lint vet vendor megacheck ; $(info $(M) running $(NAME:%=% )tests…) @ ## Run tests
+check test tests: cyclo lint vet vendor megacheck terraform.tfstate; $(info $(M) running $(NAME:%=% )tests…) @ ## Run tests
 	$Q cd $(BASE) && $(GO) test -timeout $(TIMEOUT)s $(ARGS) $(TESTPKGS)
 
 .PHONY: vet
@@ -67,6 +67,12 @@ fmt: ; $(info $(M) running gofmt…) @ ## Run gofmt on all source files
 cyclo: ; $(info $(M) running gocyclo...) @ ## Run gocyclo on all source files
 	$Q cd $(BASE) && $(GOCYCLO) -over 19 $$($(GO_FILES))
 
+terraform.tfstate: $(wildcard terraform.tfvars) .terraform ; $(info $(M) running terraform...) @ ## Run terraform to provision infrastructure needed for testing
+	$Q terraform apply -auto-approve
+
+.terraform:
+	$Q terraform init
+
 # Dependency management
 
 Gopkg.lock: Gopkg.toml | ; $(info $(M) updating dependencies…)
@@ -90,9 +96,3 @@ help:
 .PHONY: version
 version:
 	@echo $(VERSION)
-
-.PHONY: examples
-examples: ; $(info $(M) building examples…)	@ ## Building examples
-	@for d in `find _examples -type d -d 1`; do \
-	  $(MAKE) -C $$d; \
-	done

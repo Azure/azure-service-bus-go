@@ -26,7 +26,6 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
@@ -100,16 +99,16 @@ func (suite *serviceBusSuite) TestSubscriptionManagementWrites() {
 	}
 
 	ns := suite.getNewSasInstance()
-	outerCtx, outerCancel := context.WithTimeout(context.Background(), timeout)
+	outerCtx, outerCancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer outerCancel()
 	topicName := suite.RandomName("gosb", 6)
 	cleanupTopic := makeTopic(outerCtx, suite.T(), ns, topicName)
-	topic, err := ns.NewTopic(outerCtx, topicName)
+	topic, err := ns.NewTopic(topicName)
 	if suite.NoError(err) {
 		sm := topic.NewSubscriptionManager()
 		for name, testFunc := range tests {
 			suite.T().Run(name, func(t *testing.T) {
-				ctx, cancel := context.WithTimeout(context.Background(), timeout)
+				ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 				defer cancel()
 				name := suite.RandomName("gosb", 6)
 				testFunc(ctx, t, sm, name)
@@ -131,7 +130,7 @@ func testPutSubscription(ctx context.Context, t *testing.T, sm *SubscriptionMana
 }
 
 func (suite *serviceBusSuite) cleanupSubscription(topic *Topic, subscriptionName string) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 	sm := topic.NewSubscriptionManager()
 	err := sm.Delete(ctx, subscriptionName)
@@ -157,15 +156,15 @@ func (suite *serviceBusSuite) TestSubscriptionManagement() {
 		subName := suite.randEntityName()
 
 		setupTestTeardown := func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 			defer cancel()
 			cleanupTopic := makeTopic(ctx, t, ns, topicName)
-			topic, err := ns.NewTopic(ctx, topicName)
+			topic, err := ns.NewTopic(topicName)
 			if suite.NoError(err) {
 				sm := topic.NewSubscriptionManager()
 				if suite.NoError(err) {
 					defer func(sName string) {
-						ctx, cancel := context.WithTimeout(context.Background(), timeout)
+						ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 						defer cancel()
 						if !suite.NoError(sm.Delete(ctx, sName)) {
 							suite.Fail(err.Error())
@@ -246,15 +245,15 @@ func (suite *serviceBusSuite) TestSubscriptionClient() {
 	for name, testFunc := range tests {
 		setupTestTeardown := func(t *testing.T) {
 			topicName := suite.randEntityName()
-			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 			defer cancel()
 
 			topicCleanup := makeTopic(ctx, t, ns, topicName)
-			topic, err := ns.NewTopic(ctx, topicName)
+			topic, err := ns.NewTopic(topicName)
 			if suite.NoError(err) {
 				subName := suite.randEntityName()
 				subCleanup := makeSubscription(ctx, t, topic, subName)
-				subscription, err := topic.NewSubscription(ctx, subName)
+				subscription, err := topic.NewSubscription(subName)
 
 				if suite.NoError(err) {
 					defer subCleanup()
@@ -273,30 +272,22 @@ func (suite *serviceBusSuite) TestSubscriptionClient() {
 
 func testSubscriptionReceive(ctx context.Context, t *testing.T, topic *Topic, sub *Subscription) {
 	if assert.NoError(t, topic.Send(ctx, NewMessageFromString("hello!"))) {
-		var wg sync.WaitGroup
-		wg.Add(1)
-		_, err := sub.Receive(ctx, func(eventCtx context.Context, msg *Message) DispositionAction {
-			wg.Done()
+		inner, cancel := context.WithCancel(ctx)
+		err := sub.Receive(inner, HandlerFunc(func(eventCtx context.Context, msg *Message) DispositionAction {
+			defer cancel()
 			return msg.Complete()
-		})
-		if !assert.NoError(t, err) {
-			t.FailNow()
-		}
-		end, _ := ctx.Deadline()
-		waitUntil(t, &wg, time.Until(end))
+		}))
+		assert.EqualError(t, err, context.Canceled.Error())
 	}
 }
 
 func testSubscriptionReceiveOne(ctx context.Context, t *testing.T, topic *Topic, sub *Subscription) {
-	err := topic.Send(ctx, NewMessageFromString("hello!"))
-	assert.Nil(t, err)
-
-	msg, err := sub.ReceiveOne(ctx)
-	if !assert.NoError(t, err) {
-		t.FailNow()
+	if assert.NoError(t, topic.Send(ctx, NewMessageFromString("hello!"))) {
+		err := sub.ReceiveOne(ctx, HandlerFunc(func(ctx context.Context, msg *Message) DispositionAction {
+			return msg.Complete()
+		}))
+		assert.NoError(t, err)
 	}
-
-	msg.Complete()
 }
 
 func makeSubscription(ctx context.Context, t *testing.T, topic *Topic, name string, opts ...SubscriptionManagementOption) func() {
@@ -313,7 +304,7 @@ func makeSubscription(ctx context.Context, t *testing.T, topic *Topic, name stri
 		}
 	}
 	return func() {
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 		defer cancel()
 
 		_ = sm.Delete(ctx, entity.Name)
