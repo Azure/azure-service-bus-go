@@ -25,6 +25,7 @@ package servicebus
 import (
 	"context"
 	"encoding/xml"
+	"fmt"
 	"sync"
 
 	"github.com/Azure/azure-amqp-common-go/log"
@@ -238,4 +239,12 @@ func (q *Queue) ensureSender(ctx context.Context) error {
 		q.sender = s
 	}
 	return nil
+}
+
+func (e *entity) Path() string {
+	return fmt.Sprint(e.namespace.getAMQPHostURI(), e.Name)
+}
+
+func (e *entity) ManagementPath() string {
+	return fmt.Sprintf("%s/$management", e.Path())
 }
