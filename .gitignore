@@ -13,7 +13,6 @@ terraform.tfvars
 *.tfstate
 *.tfstate.backup
 .terraform/
-.terraform.tfstate.lock.info
 
 # Test binary, build with `go test -c`
 *.test
