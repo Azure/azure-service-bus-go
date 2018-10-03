@@ -137,11 +137,3 @@ func (ns *Namespace) getEntityAudience(entityPath string) string {
 func (ns *Namespace) getEntityManagementPath(entityPath string) string {
 	return ns.getAMQPHostURI() + entityPath + "/$management"
 }
-
-// max provides an integer function for math.Max
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
