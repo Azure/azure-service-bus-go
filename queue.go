@@ -241,10 +241,6 @@ func (q *Queue) ensureSender(ctx context.Context) error {
 	return nil
 }
 
-func (e *entity) Path() string {
-	return fmt.Sprint(e.namespace.getAMQPHostURI(), e.Name)
-}
-
 func (e *entity) ManagementPath() string {
-	return fmt.Sprintf("%s/$management", e.Path())
+	return fmt.Sprintf("%s/$management", e.Name)
 }
