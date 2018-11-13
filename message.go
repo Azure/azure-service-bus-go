@@ -319,7 +319,7 @@ func newMessage(data []byte, amqpMsg *amqp.Message) (*Message, error) {
 	}
 
 	if amqpMsg.ApplicationProperties != nil {
-		msg.UserProperties = make(map[string]interface{})
+		msg.UserProperties = make(map[string]interface{}, len(amqpMsg.ApplicationProperties))
 		for key, value := range amqpMsg.ApplicationProperties {
 			msg.UserProperties[key] = value
 		}
