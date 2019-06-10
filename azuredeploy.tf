@@ -50,10 +50,10 @@ resource "random_string" "secret" {
 // Application for AAD authentication
 resource "azurerm_azuread_application" "test" {
   count                       = "${data.azurerm_client_config.current.service_principal_application_id == "" ? 1 : 0}"
-  name                        = "servicebustest"
-  homepage                    = "https://servicebustest"
-  identifier_uris             = ["https://servicebustest"]
-  reply_urls                  = ["https://servicebustest"]
+  name                        = "servicebustest-${random_string.name.result}s"
+  homepage                    = "https://servicebustest-${random_string.name.result}"
+  identifier_uris             = ["https://servicebustest-${random_string.name.result}"]
+  reply_urls                  = ["https://servicebustest-${random_string.name.result}"]
   available_to_other_tenants  = false
   oauth2_allow_implicit_flow  = true
 }
@@ -72,8 +72,8 @@ resource "azurerm_azuread_service_principal_password" "test" {
   end_date              = "2030-01-01T01:02:03Z"
 }
 
-# This provides the new AAD application the rights to managed, send and receive from the Event Hubs instance
-resource "azurerm_role_assignment" "service_principal_eh" {
+# This provides the new AAD application the rights to managed, send and receive from the Service Bus instance
+resource "azurerm_role_assignment" "service_principal_sb" {
   count                 = "${data.azurerm_client_config.current.service_principal_application_id == "" ? 1 : 0}"
   scope                 = "subscriptions/${data.azurerm_client_config.current.subscription_id}/resourceGroups/${azurerm_resource_group.test.name}/providers/Microsoft.ServiceBus/namespaces/${azurerm_servicebus_namespace.test.name}"
   role_definition_name  = "Owner"
