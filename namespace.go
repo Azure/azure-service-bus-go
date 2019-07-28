@@ -29,6 +29,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/Azure/azure-amqp-common-go/v2/aad"
 	"github.com/Azure/azure-amqp-common-go/v2/auth"
 	"github.com/Azure/azure-amqp-common-go/v2/cbs"
 	"github.com/Azure/azure-amqp-common-go/v2/conn"
@@ -68,6 +69,10 @@ type (
 
 	// NamespaceOption provides structure for configuring a new Service Bus namespace
 	NamespaceOption func(h *Namespace) error
+)
+
+const (
+	serviceBusResourceURI = "https://servicebus.azure.net/"
 )
 
 // NamespaceWithConnectionString configures a namespace with the information provided in a Service Bus connection string
@@ -116,6 +121,23 @@ func NamespaceWithUserAgent(userAgent string) NamespaceOption {
 func NamespaceWithWebSocket() NamespaceOption {
 	return func(ns *Namespace) error {
 		ns.useWebSocket = true
+		return nil
+	}
+}
+
+// NamespaceFromMSI configures a namespace from the environment (variables or MSI)
+func NamespaceFromMSI(name string) NamespaceOption {
+	return func(ns *Namespace) error {
+		provider, err := aad.NewJWTProvider(
+			aad.JWTProviderWithEnvironmentVars(),
+			aad.JWTProviderWithResourceURI(serviceBusResourceURI),
+		)
+		if err != nil {
+			return err
+		}
+
+		ns.TokenProvider = provider
+		ns.Name = name
 		return nil
 	}
 }
