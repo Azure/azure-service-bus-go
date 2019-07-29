@@ -299,6 +299,8 @@ func buildTopic(ctx context.Context, t *testing.T, tm *TopicManager, name string
 func (suite *serviceBusSuite) TestTopic() {
 	tests := map[string]func(context.Context, *testing.T, *Topic){
 		"SimpleSend": testTopicSend,
+		"Exists":     testTopicExists,
+		"NotExists":  testTopicNotExists,
 	}
 
 	ns := suite.getNewSasInstance()
@@ -307,11 +309,13 @@ func (suite *serviceBusSuite) TestTopic() {
 			name := suite.randEntityName()
 			ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 			defer cancel()
-			_ = makeTopic(ctx, t, ns, name)
+			if "NotExists" != name {
+				_ = makeTopic(ctx, t, ns, name)
+			}
 			topic, err := ns.NewTopic(name)
 			if suite.NoError(err) {
 				defer func() {
-					topic.Close(ctx)
+					_ = topic.Close(ctx)
 					suite.cleanupTopic(name)
 				}()
 				testFunc(ctx, t, topic)
@@ -326,17 +330,25 @@ func testTopicSend(ctx context.Context, t *testing.T, topic *Topic) {
 	assert.NoError(t, topic.Send(ctx, NewMessageFromString("hello!")))
 }
 
+func testTopicExists(ctx context.Context, t *testing.T, topic *Topic) {
+	assert.True(t, topic.Exists(ctx))
+}
+
+func testTopicNotExists(ctx context.Context, t *testing.T, topic *Topic) {
+	assert.False(t, topic.Exists(ctx))
+}
+
 func makeTopic(ctx context.Context, t *testing.T, ns *Namespace, name string, opts ...TopicManagementOption) func() {
 	tm := ns.NewTopicManager()
 	entity, err := tm.Get(ctx, name)
 	if err != nil && !IsErrNotFound(err) {
-		assert.FailNow(t, "could not GET a subscription")
+		assert.FailNow(t, "could not GET a topic")
 	}
 
 	if entity == nil {
 		entity, err = tm.Put(ctx, name, opts...)
 		if !assert.NoError(t, err) {
-			assert.FailNow(t, "could not PUT a subscription")
+			assert.FailNow(t, "could not PUT a topic")
 		}
 	}
 	return func() {

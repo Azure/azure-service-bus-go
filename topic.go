@@ -92,6 +92,22 @@ func (ns *Namespace) NewTopic(name string, opts ...TopicOption) (*Topic, error) 
 	return topic, nil
 }
 
+// Exists checks whether the topic exists
+func (t *Topic) Exists(ctx context.Context) bool {
+	ctx, span := t.startSpanFromContext(ctx, "sb.Topic.Exists")
+	defer span.End()
+
+	err := t.ensureSender(ctx)
+	if err != nil {
+		tab.For(ctx).Error(err)
+		if strings.Contains(err.Error(), "404") {
+			return false
+		}
+		return true
+	}
+	return true
+}
+
 // Send sends messages to the Topic
 func (t *Topic) Send(ctx context.Context, event *Message, opts ...SendOption) error {
 	ctx, span := t.startSpanFromContext(ctx, "sb.Topic.Send")
