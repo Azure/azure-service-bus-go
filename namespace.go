@@ -125,8 +125,17 @@ func NamespaceWithWebSocket() NamespaceOption {
 	}
 }
 
-// NamespaceFromMSI configures a namespace from the environment (variables or MSI)
-func NamespaceFromMSI(name string) NamespaceOption {
+// NamespaceWithEnvironmentBinding configures a namespace using the environment details. It uses one of the following methods:
+//
+// 1. Client Credentials: attempt to authenticate with a Service Principal via "AZURE_TENANT_ID", "AZURE_CLIENT_ID" and
+//    "AZURE_CLIENT_SECRET"
+//
+// 2. Client Certificate: attempt to authenticate with a Service Principal via "AZURE_TENANT_ID", "AZURE_CLIENT_ID",
+//    "AZURE_CERTIFICATE_PATH" and "AZURE_CERTIFICATE_PASSWORD"
+//
+// 3. Managed Identity (MI): attempt to authenticate via the MI assigned to the Azure resource
+//
+func NamespaceWithEnvironmentBinding(name string) NamespaceOption {
 	return func(ns *Namespace) error {
 		provider, err := aad.NewJWTProvider(
 			aad.JWTProviderWithEnvironmentVars(),
