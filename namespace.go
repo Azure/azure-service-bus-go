@@ -135,6 +135,8 @@ func NamespaceWithWebSocket() NamespaceOption {
 //
 // 3. Managed Identity (MI): attempt to authenticate via the MI assigned to the Azure resource
 //
+//
+// The Azure Environment used can be specified using the name of the Azure Environment set in "AZURE_ENVIRONMENT" var.
 func NamespaceWithEnvironmentBinding(name string) NamespaceOption {
 	return func(ns *Namespace) error {
 		provider, err := aad.NewJWTProvider(
