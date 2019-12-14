@@ -34,9 +34,9 @@ import (
 	"github.com/Azure/azure-amqp-common-go/v3/cbs"
 	"github.com/Azure/azure-amqp-common-go/v3/conn"
 	"github.com/Azure/azure-amqp-common-go/v3/sas"
+	"github.com/Azure/go-amqp"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"golang.org/x/net/websocket"
-	"github.com/Azure/go-amqp"
 )
 
 const (
@@ -49,7 +49,7 @@ const (
 	//`
 
 	// Version is the semantic version number
-	Version = "0.9.1"
+	Version = "0.10.0"
 
 	rootUserAgent = "/golang-service-bus"
 )
