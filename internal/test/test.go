@@ -75,7 +75,7 @@ func (suite *BaseSuite) SetupSuite() {
 	setFromEnv := func(key string, target *string) {
 		v := os.Getenv(key)
 		if v == "" {
-			suite.FailNowf("Environment variable %q required for integration tests.", key)
+			suite.FailNowf("missing environment variable", "%q required for integration tests.", key)
 		}
 
 		*target = v
