@@ -24,13 +24,13 @@ package servicebus
 
 import (
 	"context"
-	common "github.com/Azure/azure-amqp-common-go/v3"
 	"sync"
 	"time"
 
+	common "github.com/Azure/azure-amqp-common-go/v3"
 	"github.com/Azure/azure-amqp-common-go/v3/uuid"
-	"github.com/devigned/tab"
 	"github.com/Azure/go-amqp"
+	"github.com/devigned/tab"
 )
 
 type (
@@ -148,8 +148,10 @@ func (s *Sender) Send(ctx context.Context, msg *Message, opts ...SendOption) err
 	defer span.End()
 
 	if msg.SessionID == nil {
+		s.clientMu.RLock()
 		msg.SessionID = &s.session.SessionID
 		next := s.session.getNext()
+		s.clientMu.RUnlock()
 		msg.GroupSequence = &next
 	}
 
