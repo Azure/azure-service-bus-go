@@ -77,6 +77,7 @@ func (ns *Namespace) NewSender(ctx context.Context, entityPath string, opts ...S
 		}
 	}
 
+	// no need to take the write lock as we're creating a new Sender
 	err := s.newSessionAndLink(ctx)
 	if err != nil {
 		tab.For(ctx).Error(err)
@@ -96,7 +97,10 @@ func (s *Sender) Recover(ctx context.Context) error {
 	closeCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	closeCtx = tab.NewContext(closeCtx, span)
 	defer cancel()
-	_ = s.Close(ctx)
+	// we must close then rebuild the session/link atomically
+	s.clientMu.Lock()
+	defer s.clientMu.Unlock()
+	_ = s.close(ctx)
 	return s.newSessionAndLink(ctx)
 }
 
@@ -108,6 +112,11 @@ func (s *Sender) Close(ctx context.Context) error {
 	s.clientMu.Lock()
 	defer s.clientMu.Unlock()
 
+	return s.close(ctx)
+}
+
+// closes the connection.  callers *must* hold the client write lock before calling!
+func (s *Sender) close(ctx context.Context) error {
 	if s.doneRefreshingAuth != nil {
 		s.doneRefreshingAuth()
 	}
@@ -149,6 +158,17 @@ func (s *Sender) Send(ctx context.Context, msg *Message, opts ...SendOption) err
 
 	if msg.SessionID == nil {
 		s.clientMu.RLock()
+		if s.session == nil {
+			// another goroutine has closed the connection
+			name := "Sender"
+			if s.Name != "" {
+				name = s.Name
+			}
+			s.clientMu.RUnlock()
+			err := ErrConnectionClosed(name)
+			tab.For(ctx).Error(err)
+			return err
+		}
 		msg.SessionID = &s.session.SessionID
 		next := s.session.getNext()
 		s.clientMu.RUnlock()
@@ -259,12 +279,10 @@ func (s *Sender) getFullIdentifier() string {
 }
 
 // newSessionAndLink will replace the existing session and link
+// NOTE: this does *not* take the write lock, callers must hold it as required!
 func (s *Sender) newSessionAndLink(ctx context.Context) error {
 	ctx, span := s.startProducerSpanFromContext(ctx, "sb.Sender.newSessionAndLink")
 	defer span.End()
-
-	s.clientMu.Lock()
-	defer s.clientMu.Unlock()
 
 	connection, err := s.namespace.newClient()
 	if err != nil {
