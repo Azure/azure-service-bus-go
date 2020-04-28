@@ -160,14 +160,8 @@ func (s *Sender) Send(ctx context.Context, msg *Message, opts ...SendOption) err
 		s.clientMu.RLock()
 		if s.session == nil {
 			// another goroutine has closed the connection
-			name := "Sender"
-			if s.Name != "" {
-				name = s.Name
-			}
 			s.clientMu.RUnlock()
-			err := ErrConnectionClosed(name)
-			tab.For(ctx).Error(err)
-			return err
+			return s.connClosedError(ctx)
 		}
 		msg.SessionID = &s.session.SessionID
 		next := s.session.getNext()
@@ -224,7 +218,14 @@ func (s *Sender) trySend(ctx context.Context, evt eventer) error {
 			return ctx.Err()
 		default:
 			// try as long as the context is not dead
+			s.clientMu.RLock()
+			if s.sender == nil {
+				// another goroutine has closed the connection
+				s.clientMu.RUnlock()
+				return s.connClosedError(ctx)
+			}
 			err = s.sender.Send(ctx, msg)
+			s.clientMu.RUnlock()
 			if err == nil {
 				// successful send
 				return err
@@ -264,6 +265,16 @@ func (s *Sender) trySend(ctx context.Context, evt eventer) error {
 			}
 		}
 	}
+}
+
+func (s *Sender) connClosedError(ctx context.Context) error {
+	name := "Sender"
+	if s.Name != "" {
+		name = s.Name
+	}
+	err := ErrConnectionClosed(name)
+	tab.For(ctx).Error(err)
+	return err
 }
 
 func (s *Sender) String() string {
