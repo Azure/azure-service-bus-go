@@ -1,5 +1,8 @@
 # Change Log
 
+## `v0.10.2`
+- add support for sending and receiving custom annotations
+
 ## `v0.10.1`
 - fix nil pointer dereference for concurrent uses of Send() [issue #149](https://github.com/Azure/azure-service-bus-go/issues/149)
 - fix nil pointer dereference when there are no listeners [PR #151](https://github.com/Azure/azure-service-bus-go/pull/151)
