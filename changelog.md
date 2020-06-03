@@ -2,6 +2,9 @@
 
 ## `v0.10.2`
 - add support for sending and receiving custom annotations
+- added some missing AMQP span attributes
+- fixed propagation of sender/receiver close context
+- don't panic on empty AMQP payloads
 
 ## `v0.10.1`
 - fix nil pointer dereference for concurrent uses of Send() [issue #149](https://github.com/Azure/azure-service-bus-go/issues/149)
