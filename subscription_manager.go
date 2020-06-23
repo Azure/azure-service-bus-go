@@ -568,7 +568,7 @@ func SubscriptionWithDefaultRuleDescription(filter FilterDescriber) Subscription
 	return func(s *SubscriptionDescription) error {
 		rule := &DefaultRuleDescription{
 			Filter: filter.ToFilterDescription(),
-			Name:   ptrString("$Default"),
+			Name:   ptrString("rule0"),
 		}
 		s.DefaultRuleDescription = rule
 		return nil
