@@ -564,11 +564,11 @@ func SubscriptionWithMessageTimeToLive(window *time.Duration) SubscriptionManage
 
 // SubscriptionWithDefaultRuleDescription configures the subscription to set a
 // default rule
-func SubscriptionWithDefaultRuleDescription(filter FilterDescriber) SubscriptionManagementOption {
+func SubscriptionWithDefaultRuleDescription(filter FilterDescriber, name string) SubscriptionManagementOption {
 	return func(s *SubscriptionDescription) error {
 		rule := &DefaultRuleDescription{
 			Filter: filter.ToFilterDescription(),
-			Name:   ptrString("rule0"),
+			Name:   &name,
 		}
 		s.DefaultRuleDescription = rule
 		return nil

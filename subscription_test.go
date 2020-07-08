@@ -372,7 +372,7 @@ func testSubscriptionWithActionRule(ctx context.Context, t *testing.T, sm *Subsc
 }
 
 func testSubscriptionWithDefaultRuleDescription(ctx context.Context, t *testing.T, sm *SubscriptionManager, _, name string) {
-	s := buildSubscription(ctx, t, sm, name, SubscriptionWithDefaultRuleDescription(FalseFilter{}))
+	s := buildSubscription(ctx, t, sm, name, SubscriptionWithDefaultRuleDescription(FalseFilter{}, "falseRule"))
 	rules, err := sm.ListRules(ctx, s.Name)
 	require.NoError(t, err)
 	require.Len(t, rules, 1)
