@@ -60,6 +60,7 @@ type (
 	Namespace struct {
 		Name          string
 		Suffix        string
+		ServiceBusResourceURI string
 		TokenProvider auth.TokenProvider
 		Environment   azure.Environment
 		tlsConfig     *tls.Config
@@ -69,10 +70,6 @@ type (
 
 	// NamespaceOption provides structure for configuring a new Service Bus namespace
 	NamespaceOption func(h *Namespace) error
-)
-
-const (
-	serviceBusResourceURI = "https://servicebus.azure.net/"
 )
 
 // NamespaceWithConnectionString configures a namespace with the information provided in a Service Bus connection string
@@ -141,7 +138,7 @@ func NamespaceWithEnvironmentBinding(name string) NamespaceOption {
 	return func(ns *Namespace) error {
 		provider, err := aad.NewJWTProvider(
 			aad.JWTProviderWithEnvironmentVars(),
-			aad.JWTProviderWithResourceURI(serviceBusResourceURI),
+			aad.JWTProviderWithResourceURI(ns.ServiceBusResourceURI),
 		)
 		if err != nil {
 			return err
@@ -149,6 +146,19 @@ func NamespaceWithEnvironmentBinding(name string) NamespaceOption {
 
 		ns.TokenProvider = provider
 		ns.Name = name
+		return nil
+	}
+}
+
+func NamespaceWithAzureEnvironment(envName string) NamespaceOption {
+	return func(ns *Namespace) error {
+		azureEnv, err := azure.EnvironmentFromName(envName)
+		if err != nil {
+			return err
+		}
+		ns.Environment = azureEnv
+		ns.Suffix = azureEnv.ServiceBusEndpointSuffix
+		ns.ServiceBusResourceURI = azureEnv.ServiceBusEndpoint
 		return nil
 	}
 }
