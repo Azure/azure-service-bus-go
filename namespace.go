@@ -52,20 +52,23 @@ const (
 	Version = "0.10.3"
 
 	rootUserAgent = "/golang-service-bus"
+
+	// default ServiceBus resource uri to authenticate with
+	serviceBusResourceURI = "https://servicebus.azure.net/"
 )
 
 type (
 	// Namespace provides a simplified facade over the AMQP implementation of Azure Service Bus and is the entry point
 	// for using Queues, Topics and Subscriptions
 	Namespace struct {
-		Name                  string
-		Suffix                string
-		ServiceBusResourceURI string
-		TokenProvider         auth.TokenProvider
-		Environment           azure.Environment
-		tlsConfig             *tls.Config
-		userAgent             string
-		useWebSocket          bool
+		Name          string
+		Suffix        string
+		ResourceURI   string
+		TokenProvider auth.TokenProvider
+		Environment   azure.Environment
+		tlsConfig     *tls.Config
+		userAgent     string
+		useWebSocket  bool
 	}
 
 	// NamespaceOption provides structure for configuring a new Service Bus namespace
@@ -136,9 +139,12 @@ func NamespaceWithWebSocket() NamespaceOption {
 // The Azure Environment used can be specified using the name of the Azure Environment set in "AZURE_ENVIRONMENT" var.
 func NamespaceWithEnvironmentBinding(name string) NamespaceOption {
 	return func(ns *Namespace) error {
+		if ns.ResourceURI == "" {
+			ns.ResourceURI = serviceBusResourceURI
+		}
 		provider, err := aad.NewJWTProvider(
 			aad.JWTProviderWithEnvironmentVars(),
-			aad.JWTProviderWithResourceURI(ns.ServiceBusResourceURI),
+			aad.JWTProviderWithResourceURI(ns.ResourceURI),
 		)
 		if err != nil {
 			return err
@@ -150,6 +156,10 @@ func NamespaceWithEnvironmentBinding(name string) NamespaceOption {
 	}
 }
 
+// NamespaceWithAzureEnvironment sets the namespace's Environment, Suffix and ResourceURI parameters according
+// to the Azure Environment defined in "github.com/Azure/go-autorest/autorest/azure" package.
+// This allows to configure the library to be used in the different Azure clouds.
+// envName is the name of the cloud as defined in autorest : https://github.com/Azure/go-autorest/blob/b076c1437d051bf4c328db428b70f4fe22ad38b0/autorest/azure/environments.go#L34-L39
 func NamespaceWithAzureEnvironment(envName string) NamespaceOption {
 	return func(ns *Namespace) error {
 		azureEnv, err := azure.EnvironmentFromName(envName)
@@ -158,7 +168,12 @@ func NamespaceWithAzureEnvironment(envName string) NamespaceOption {
 		}
 		ns.Environment = azureEnv
 		ns.Suffix = azureEnv.ServiceBusEndpointSuffix
-		ns.ServiceBusResourceURI = azureEnv.ServiceBusEndpoint
+		// TODO: when autorest includes ResourceIdentifier.ServiceBus
+		// ns.ServiceBusResourceURI = azureEnv.ResourceIdentifiers.ServiceBus
+		// if ns.ServiceBusResourceURI  == "" {
+		// 	 ns.ServiceBusResourceURI = serviceBusResourceURI
+		// }
+		ns.ResourceURI = serviceBusResourceURI
 		return nil
 	}
 }
