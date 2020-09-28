@@ -58,14 +58,14 @@ type (
 	// Namespace provides a simplified facade over the AMQP implementation of Azure Service Bus and is the entry point
 	// for using Queues, Topics and Subscriptions
 	Namespace struct {
-		Name          string
-		Suffix        string
+		Name                  string
+		Suffix                string
 		ServiceBusResourceURI string
-		TokenProvider auth.TokenProvider
-		Environment   azure.Environment
-		tlsConfig     *tls.Config
-		userAgent     string
-		useWebSocket  bool
+		TokenProvider         auth.TokenProvider
+		Environment           azure.Environment
+		tlsConfig             *tls.Config
+		userAgent             string
+		useWebSocket          bool
 	}
 
 	// NamespaceOption provides structure for configuring a new Service Bus namespace
