@@ -70,9 +70,6 @@ func TestNewNamespaceWithAzureEnvironment(t *testing.T) {
 	if !strings.EqualFold(ns.Suffix, azure.GermanCloud.ServiceBusEndpointSuffix) {
 		t.FailNow()
 	}
-	if !strings.EqualFold(ns.ResourceURI, azure.GermanCloud.ResourceIdentifiers.ServiceBus) {
-		t.FailNow()
-	}
 }
 
 // TearDownSuite destroys created resources during the run of the suite

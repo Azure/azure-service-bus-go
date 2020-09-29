@@ -63,7 +63,6 @@ type (
 	Namespace struct {
 		Name          string
 		Suffix        string
-		ResourceURI   string
 		TokenProvider auth.TokenProvider
 		Environment   azure.Environment
 		tlsConfig     *tls.Config
@@ -139,12 +138,9 @@ func NamespaceWithWebSocket() NamespaceOption {
 // The Azure Environment used can be specified using the name of the Azure Environment set in "AZURE_ENVIRONMENT" var.
 func NamespaceWithEnvironmentBinding(name string) NamespaceOption {
 	return func(ns *Namespace) error {
-		if ns.ResourceURI == "" {
-			ns.ResourceURI = serviceBusResourceURI
-		}
 		provider, err := aad.NewJWTProvider(
 			aad.JWTProviderWithEnvironmentVars(),
-			aad.JWTProviderWithResourceURI(ns.ResourceURI),
+			aad.JWTProviderWithResourceURI(ns.getResourceURI()),
 		)
 		if err != nil {
 			return err
@@ -168,11 +164,6 @@ func NamespaceWithAzureEnvironment(envName string) NamespaceOption {
 		}
 		ns.Environment = azureEnv
 		ns.Suffix = azureEnv.ServiceBusEndpointSuffix
-		ns.ResourceURI = azureEnv.ResourceIdentifiers.ServiceBus
-		if ns.ResourceURI == "" {
-			ns.ResourceURI = serviceBusResourceURI
-		}
-		ns.ResourceURI = serviceBusResourceURI
 		return nil
 	}
 }
@@ -270,13 +261,16 @@ func (ns *Namespace) getUserAgent() string {
 	return userAgent
 }
 
-func (ns *Namespace) resolveSuffix() string {
-	var suffix string
-	if ns.Suffix != "" {
-		suffix = ns.Suffix
-	} else {
-		suffix = azure.PublicCloud.ServiceBusEndpointSuffix
+func (ns *Namespace) getResourceURI() string {
+	if ns.Environment.ResourceIdentifiers.ServiceBus == "" {
+		return serviceBusResourceURI
 	}
+	return ns.Environment.ResourceIdentifiers.ServiceBus
+}
 
-	return suffix
+func (ns *Namespace) resolveSuffix() string {
+	if ns.Suffix != "" {
+		return ns.Suffix
+	}
+	return azure.PublicCloud.ServiceBusEndpointSuffix
 }
