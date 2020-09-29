@@ -169,8 +169,8 @@ func NamespaceWithAzureEnvironment(envName string) NamespaceOption {
 		ns.Environment = azureEnv
 		ns.Suffix = azureEnv.ServiceBusEndpointSuffix
 		ns.ResourceURI = azureEnv.ResourceIdentifiers.ServiceBus
-		if ns.ResourceURI  == "" {
-			 ns.ResourceURI = serviceBusResourceURI
+		if ns.ResourceURI == "" {
+			ns.ResourceURI = serviceBusResourceURI
 		}
 		ns.ResourceURI = serviceBusResourceURI
 		return nil
