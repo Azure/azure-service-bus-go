@@ -165,15 +165,17 @@ func NamespaceWithAzureEnvironment(namespaceName, environmentName string) Namesp
 		}
 		ns.Environment = azureEnv
 		ns.Suffix = azureEnv.ServiceBusEndpointSuffix
-		provider, err := aad.NewJWTProvider(
-			aad.JWTProviderWithAzureEnvironment(&ns.Environment),
-			// TODO: fix bug upstream to use environment resourceURI
-			aad.JWTProviderWithResourceURI(ns.getResourceURI()),
-		)
 		if err != nil {
 			return err
 		}
 		ns.Name = namespaceName
+		return nil
+	}
+}
+
+// NamespaceWithTokenProvider sets the token provider on the namespace
+func NamespaceWithTokenProvider(provider auth.TokenProvider) NamespaceOption {
+	return func(ns *Namespace) error {
 		ns.TokenProvider = provider
 		return nil
 	}
