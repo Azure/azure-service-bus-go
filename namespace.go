@@ -168,11 +168,10 @@ func NamespaceWithAzureEnvironment(envName string) NamespaceOption {
 		}
 		ns.Environment = azureEnv
 		ns.Suffix = azureEnv.ServiceBusEndpointSuffix
-		// TODO: when autorest includes ResourceIdentifier.ServiceBus
-		// ns.ServiceBusResourceURI = azureEnv.ResourceIdentifiers.ServiceBus
-		// if ns.ServiceBusResourceURI  == "" {
-		// 	 ns.ServiceBusResourceURI = serviceBusResourceURI
-		// }
+		ns.ResourceURI = azureEnv.ResourceIdentifiers.ServiceBus
+		if ns.ResourceURI  == "" {
+			 ns.ResourceURI = serviceBusResourceURI
+		}
 		ns.ResourceURI = serviceBusResourceURI
 		return nil
 	}
