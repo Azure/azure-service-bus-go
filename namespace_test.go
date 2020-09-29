@@ -60,15 +60,18 @@ func (suite *serviceBusSuite) TestCreateNamespaceFromConnectionString() {
 }
 
 func TestNewNamespaceWithAzureEnvironment(t *testing.T) {
-	ns, err := NewNamespace(NamespaceWithAzureEnvironment("AzureGermanCloud"))
+	ns, err := NewNamespace(NamespaceWithAzureEnvironment("namespaceName", "AzureGermanCloud"))
 	if err != nil {
-		t.FailNow()
+		t.Fatalf("unexpected error creating namespace: %s", err)
 	}
 	if ns.Environment != azure.GermanCloud {
-		t.FailNow()
+		t.Fatalf("expected namespace environment to be %q but was %q", azure.GermanCloud, ns.Environment)
 	}
 	if !strings.EqualFold(ns.Suffix, azure.GermanCloud.ServiceBusEndpointSuffix) {
-		t.FailNow()
+		t.Fatalf("expected suffix to be %q but was %q", azure.GermanCloud.ServiceBusEndpointSuffix, ns.Suffix)
+	}
+	if ns.Name != "namespaceName" {
+		t.Fatalf("expected namespace name to be %q but was %q", "namespaceName", ns.Name)
 	}
 }
 

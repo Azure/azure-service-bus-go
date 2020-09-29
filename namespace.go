@@ -140,6 +140,7 @@ func NamespaceWithEnvironmentBinding(name string) NamespaceOption {
 	return func(ns *Namespace) error {
 		provider, err := aad.NewJWTProvider(
 			aad.JWTProviderWithEnvironmentVars(),
+			// TODO: fix bug upstream to use environment resourceURI
 			aad.JWTProviderWithResourceURI(ns.getResourceURI()),
 		)
 		if err != nil {
@@ -155,15 +156,25 @@ func NamespaceWithEnvironmentBinding(name string) NamespaceOption {
 // NamespaceWithAzureEnvironment sets the namespace's Environment, Suffix and ResourceURI parameters according
 // to the Azure Environment defined in "github.com/Azure/go-autorest/autorest/azure" package.
 // This allows to configure the library to be used in the different Azure clouds.
-// envName is the name of the cloud as defined in autorest : https://github.com/Azure/go-autorest/blob/b076c1437d051bf4c328db428b70f4fe22ad38b0/autorest/azure/environments.go#L34-L39
-func NamespaceWithAzureEnvironment(envName string) NamespaceOption {
+// environmentName is the name of the cloud as defined in autorest : https://github.com/Azure/go-autorest/blob/b076c1437d051bf4c328db428b70f4fe22ad38b0/autorest/azure/environments.go#L34-L39
+func NamespaceWithAzureEnvironment(namespaceName, environmentName string) NamespaceOption {
 	return func(ns *Namespace) error {
-		azureEnv, err := azure.EnvironmentFromName(envName)
+		azureEnv, err := azure.EnvironmentFromName(environmentName)
 		if err != nil {
 			return err
 		}
 		ns.Environment = azureEnv
 		ns.Suffix = azureEnv.ServiceBusEndpointSuffix
+		provider, err := aad.NewJWTProvider(
+			aad.JWTProviderWithAzureEnvironment(&ns.Environment),
+			// TODO: fix bug upstream to use environment resourceURI
+			aad.JWTProviderWithResourceURI(ns.getResourceURI()),
+		)
+		if err != nil {
+			return err
+		}
+		ns.Name = namespaceName
+		ns.TokenProvider = provider
 		return nil
 	}
 }
