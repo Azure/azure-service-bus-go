@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/Azure/azure-amqp-common-go/v3/aad"
 	"github.com/Azure/azure-amqp-common-go/v3/auth"
@@ -36,7 +37,7 @@ import (
 	"github.com/Azure/azure-amqp-common-go/v3/sas"
 	"github.com/Azure/go-amqp"
 	"github.com/Azure/go-autorest/autorest/azure"
-	"golang.org/x/net/websocket"
+	"nhooyr.io/websocket"
 )
 
 const (
@@ -190,13 +191,17 @@ func (ns *Namespace) newClient() (*amqp.Client, error) {
 
 	if ns.useWebSocket {
 		wssHost := ns.getWSSHostURI() + "$servicebus/websocket"
-		wssConn, err := websocket.Dial(wssHost, "amqp", "http://localhost/")
+		ctx, cancelfunc := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancelfunc()
+		opts := &websocket.DialOptions{Subprotocols: []string{"amqp"}}
+		wssConn, _, err := websocket.Dial(ctx, wssHost, opts)
+
 		if err != nil {
 			return nil, err
 		}
+		nConn := websocket.NetConn(context.Background(), wssConn, websocket.MessageBinary)
 
-		wssConn.PayloadType = websocket.BinaryFrame
-		return amqp.New(wssConn, append(defaultConnOptions, amqp.ConnServerHostname(ns.getHostname()))...)
+		return amqp.New(nConn, append(defaultConnOptions, amqp.ConnServerHostname(ns.getHostname()))...)
 	}
 
 	return amqp.Dial(ns.getAMQPHostURI(), defaultConnOptions...)
