@@ -354,7 +354,7 @@ func (q *Queue) Close(ctx context.Context) error {
 }
 
 func isConnectionClosed(err error) bool {
-	return err.Error() == "amqp: connection closed"
+	return err.Error() == "amqp: connection closed" || err.Error() == "failed to close WebSocket: failed to read frame header: EOF"
 }
 
 func (q *Queue) newReceiver(ctx context.Context, opts ...ReceiverOption) (*Receiver, error) {
