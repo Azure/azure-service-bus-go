@@ -388,7 +388,7 @@ func (r *Receiver) newSessionAndLink(ctx context.Context) error {
 	ctx, span := r.startConsumerSpanFromContext(ctx, "sb.Receiver.newSessionAndLink")
 	defer span.End()
 
-	client, err := r.namespace.newClient()
+	client, err := r.namespace.newClient(ctx)
 	if err != nil {
 		tab.For(ctx).Error(err)
 		return err
