@@ -165,9 +165,6 @@ func NamespaceWithAzureEnvironment(namespaceName, environmentName string) Namesp
 		}
 		ns.Environment = azureEnv
 		ns.Suffix = azureEnv.ServiceBusEndpointSuffix
-		if err != nil {
-			return err
-		}
 		ns.Name = namespaceName
 		return nil
 	}
