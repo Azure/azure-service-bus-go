@@ -252,8 +252,9 @@ func (ns *Namespace) negotiateClaim(ctx context.Context, client *amqp.Client, en
 		// start the periodic refresh of credentials
 		refreshCtx, done := context.WithCancel(context.Background())
 		go func() {
+			const refreshDelay = 15 * time.Minute
+			timer := time.NewTimer(refreshDelay)
 			for {
-				timer := time.NewTimer(15 * time.Minute)
 				select {
 				case <-refreshCtx.Done():
 					// stop timer and drain channel
@@ -268,7 +269,9 @@ func (ns *Namespace) negotiateClaim(ctx context.Context, client *amqp.Client, en
 						tab.For(refreshCtx).Error(err)
 						// if auth failed cancel auto-refresh
 						done()
+						return
 					}
+					timer.Reset(refreshDelay)
 				}
 			}
 		}()
