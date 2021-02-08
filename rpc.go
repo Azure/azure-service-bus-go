@@ -77,6 +77,9 @@ func (r *rpcClient) Recover(ctx context.Context) error {
 func (r *rpcClient) Close() error {
 	r.clientMu.Lock()
 	defer r.clientMu.Unlock()
+	if r.doneRefreshingAuth != nil {
+		r.doneRefreshingAuth()
+	}
 
 	return r.client.Close()
 }
