@@ -85,8 +85,6 @@ func (ns *Namespace) NewSender(ctx context.Context, entityPath string, opts ...S
 		tab.For(ctx).Error(err)
 	}
 
-	s.periodicallyRefreshAuth()
-
 	return s, err
 }
 
@@ -330,7 +328,7 @@ func (s *Sender) newSessionAndLink(ctx context.Context) error {
 	}
 	s.client = connection
 
-	err = s.namespace.negotiateClaim(ctx, connection, s.getAddress())
+	s.doneRefreshingAuth, err = s.namespace.negotiateClaim(ctx, connection, s.getAddress())
 	if err != nil {
 		tab.For(ctx).Error(err)
 		return err
@@ -362,37 +360,6 @@ func (s *Sender) newSessionAndLink(ctx context.Context) error {
 
 	s.sender = amqpSender
 	return nil
-}
-
-func (s *Sender) periodicallyRefreshAuth() {
-	ctx, done := context.WithCancel(context.Background())
-	s.doneRefreshingAuth = done
-
-	ctx, span := s.startProducerSpanFromContext(ctx, "sb.Sender.periodicallyRefreshAuth")
-	defer span.End()
-
-	doNegotiateClaimLocked := func(ctx context.Context, r *Sender) {
-		r.clientMu.RLock()
-		defer r.clientMu.RUnlock()
-
-		if r.client != nil {
-			if err := r.namespace.negotiateClaim(ctx, r.client, r.entityPath); err != nil {
-				tab.For(ctx).Error(err)
-			}
-		}
-	}
-
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				time.Sleep(5 * time.Minute)
-				doNegotiateClaimLocked(ctx, s)
-			}
-		}
-	}()
 }
 
 // SenderWithSession configures the message to send with a specific session and sequence. By default, a Sender has a
