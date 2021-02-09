@@ -75,8 +75,6 @@ type (
 		initRefresh sync.Once
 		// populated with the result from auto-refresh, to be called elsewhere
 		cancelRefresh func() <-chan struct{}
-		// used to synchronize with the refresh goroutine exiting
-		exitChan chan struct{}
 	}
 
 	// NamespaceOption provides structure for configuring a new Service Bus namespace
@@ -191,7 +189,6 @@ func NamespaceWithTokenProvider(provider auth.TokenProvider) NamespaceOption {
 func NewNamespace(opts ...NamespaceOption) (*Namespace, error) {
 	ns := &Namespace{
 		Environment: azure.PublicCloud,
-		exitChan:    make(chan struct{}, 1),
 	}
 
 	for _, opt := range opts {
@@ -254,12 +251,13 @@ func (ns *Namespace) negotiateClaim(ctx context.Context, client *amqp.Client, en
 	ns.initRefresh.Do(func() {
 		// start the periodic refresh of credentials
 		refreshCtx, done := context.WithCancel(context.Background())
+		exitChan := make(chan struct{})
 		go func() {
 			defer func() {
 				// reset the guard when the refresh goroutine exits
 				ns.initRefresh = sync.Once{}
 				// signal that the refresh goroutine has exited
-				ns.exitChan <- struct{}{}
+				close(exitChan)
 			}()
 			const refreshDelay = 15 * time.Minute
 			timer := time.NewTimer(refreshDelay)
@@ -286,7 +284,7 @@ func (ns *Namespace) negotiateClaim(ctx context.Context, client *amqp.Client, en
 		}()
 		ns.cancelRefresh = func() <-chan struct{} {
 			done()
-			return ns.exitChan
+			return exitChan
 		}
 	})
 	return ns.cancelRefresh, nil
