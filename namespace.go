@@ -259,25 +259,17 @@ func (ns *Namespace) negotiateClaim(ctx context.Context, client *amqp.Client, en
 				// signal that the refresh goroutine has exited
 				close(exitChan)
 			}()
-			const refreshDelay = 15 * time.Minute
-			timer := time.NewTimer(refreshDelay)
 			for {
 				select {
 				case <-refreshCtx.Done():
-					// stop timer and drain channel
-					if !timer.Stop() {
-						<-timer.C
-					}
 					return
-				case <-timer.C:
+				case <-time.After(15 * time.Minute):
 					refreshCtx, span := ns.startSpanFromContext(refreshCtx, "sb.namespace.negotiateClaim.refresh")
 					defer span.End()
 					if err := cbs.NegotiateClaim(refreshCtx, audience, client, ns.TokenProvider); err != nil {
 						tab.For(refreshCtx).Error(err)
 						// if auth failed cancel auto-refresh
 						cancel()
-					} else {
-						timer.Reset(refreshDelay)
 					}
 				}
 			}
