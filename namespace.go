@@ -276,9 +276,9 @@ func (ns *Namespace) negotiateClaim(ctx context.Context, client *amqp.Client, en
 						tab.For(refreshCtx).Error(err)
 						// if auth failed cancel auto-refresh
 						done()
-						return
+					} else {
+						timer.Reset(refreshDelay)
 					}
-					timer.Reset(refreshDelay)
 				}
 			}
 		}()
