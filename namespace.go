@@ -250,7 +250,7 @@ func (ns *Namespace) negotiateClaim(ctx context.Context, client *amqp.Client, en
 	}
 	ns.initRefresh.Do(func() {
 		// start the periodic refresh of credentials
-		refreshCtx, done := context.WithCancel(context.Background())
+		refreshCtx, cancel := context.WithCancel(context.Background())
 		exitChan := make(chan struct{})
 		go func() {
 			defer func() {
@@ -275,7 +275,7 @@ func (ns *Namespace) negotiateClaim(ctx context.Context, client *amqp.Client, en
 					if err := cbs.NegotiateClaim(refreshCtx, audience, client, ns.TokenProvider); err != nil {
 						tab.For(refreshCtx).Error(err)
 						// if auth failed cancel auto-refresh
-						done()
+						cancel()
 					} else {
 						timer.Reset(refreshDelay)
 					}
@@ -283,7 +283,7 @@ func (ns *Namespace) negotiateClaim(ctx context.Context, client *amqp.Client, en
 			}
 		}()
 		ns.cancelRefresh = func() <-chan struct{} {
-			done()
+			cancel()
 			return exitChan
 		}
 	})

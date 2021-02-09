@@ -38,15 +38,15 @@ import (
 type (
 	// Sender provides connection, session and link handling for an sending to an entity path
 	Sender struct {
-		namespace          *Namespace
-		client             *amqp.Client
-		clientMu           sync.RWMutex
-		session            *session
-		sender             *amqp.Sender
-		entityPath         string
-		Name               string
-		sessionID          *string
-		doneRefreshingAuth func() <-chan struct{}
+		namespace         *Namespace
+		client            *amqp.Client
+		clientMu          sync.RWMutex
+		session           *session
+		sender            *amqp.Sender
+		entityPath        string
+		Name              string
+		sessionID         *string
+		cancelAuthRefresh func() <-chan struct{}
 	}
 
 	// SendOption provides a way to customize a message on sending
@@ -117,8 +117,8 @@ func (s *Sender) Close(ctx context.Context) error {
 
 // closes the connection.  callers *must* hold the client write lock before calling!
 func (s *Sender) close(ctx context.Context) error {
-	if s.doneRefreshingAuth != nil {
-		<-s.doneRefreshingAuth()
+	if s.cancelAuthRefresh != nil {
+		<-s.cancelAuthRefresh()
 	}
 
 	var lastErr error
@@ -328,7 +328,7 @@ func (s *Sender) newSessionAndLink(ctx context.Context) error {
 	}
 	s.client = connection
 
-	s.doneRefreshingAuth, err = s.namespace.negotiateClaim(ctx, connection, s.getAddress())
+	s.cancelAuthRefresh, err = s.namespace.negotiateClaim(ctx, connection, s.getAddress())
 	if err != nil {
 		tab.For(ctx).Error(err)
 		return err

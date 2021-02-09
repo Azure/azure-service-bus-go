@@ -52,7 +52,7 @@ type (
 		prefetch           uint32
 		DefaultDisposition DispositionAction
 		Closed             bool
-		doneRefreshingAuth func() <-chan struct{}
+		cancelAuthRefresh  func() <-chan struct{}
 	}
 
 	// ReceiverOption provides a structure for configuring receivers
@@ -141,8 +141,8 @@ func (r *Receiver) close(ctx context.Context) error {
 		r.doneListening()
 	}
 
-	if r.doneRefreshingAuth != nil {
-		<-r.doneRefreshingAuth()
+	if r.cancelAuthRefresh != nil {
+		<-r.cancelAuthRefresh()
 	}
 
 	r.Closed = true
@@ -393,7 +393,7 @@ func (r *Receiver) newSessionAndLink(ctx context.Context) error {
 	}
 	r.client = client
 
-	r.doneRefreshingAuth, err = r.namespace.negotiateClaim(ctx, client, r.entityPath)
+	r.cancelAuthRefresh, err = r.namespace.negotiateClaim(ctx, client, r.entityPath)
 	if err != nil {
 		tab.For(ctx).Error(err)
 		return err
