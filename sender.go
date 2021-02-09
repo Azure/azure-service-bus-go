@@ -46,7 +46,7 @@ type (
 		entityPath         string
 		Name               string
 		sessionID          *string
-		doneRefreshingAuth func()
+		doneRefreshingAuth func() <-chan struct{}
 	}
 
 	// SendOption provides a way to customize a message on sending
@@ -118,7 +118,7 @@ func (s *Sender) Close(ctx context.Context) error {
 // closes the connection.  callers *must* hold the client write lock before calling!
 func (s *Sender) close(ctx context.Context) error {
 	if s.doneRefreshingAuth != nil {
-		s.doneRefreshingAuth()
+		<-s.doneRefreshingAuth()
 	}
 
 	var lastErr error

@@ -43,7 +43,7 @@ type (
 		clientMu           sync.RWMutex
 		sessionID          *string
 		isSessionFilterSet bool
-		doneRefreshingAuth func()
+		doneRefreshingAuth func() <-chan struct{}
 	}
 
 	rpcClientOption func(*rpcClient) error
@@ -78,7 +78,7 @@ func (r *rpcClient) Close() error {
 	r.clientMu.Lock()
 	defer r.clientMu.Unlock()
 	if r.doneRefreshingAuth != nil {
-		r.doneRefreshingAuth()
+		<-r.doneRefreshingAuth()
 	}
 
 	return r.client.Close()

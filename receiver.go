@@ -52,7 +52,7 @@ type (
 		prefetch           uint32
 		DefaultDisposition DispositionAction
 		Closed             bool
-		doneRefreshingAuth func()
+		doneRefreshingAuth func() <-chan struct{}
 	}
 
 	// ReceiverOption provides a structure for configuring receivers
@@ -142,7 +142,7 @@ func (r *Receiver) close(ctx context.Context) error {
 	}
 
 	if r.doneRefreshingAuth != nil {
-		r.doneRefreshingAuth()
+		<-r.doneRefreshingAuth()
 	}
 
 	r.Closed = true
