@@ -30,6 +30,7 @@ import (
 	"sync"
 	"time"
 
+	common "github.com/Azure/azure-amqp-common-go/v3"
 	"github.com/Azure/azure-amqp-common-go/v3/rpc"
 	"github.com/Azure/azure-amqp-common-go/v3/uuid"
 	"github.com/Azure/go-amqp"
@@ -130,11 +131,10 @@ func (r *rpcClient) doRPCWithRetry(ctx context.Context, address string, msg *amq
 				return rsp, err
 			}
 		}
-		if retries >= amqpRetryDefaultTimes {
+		if retries >= amqpRetryDefaultTimes || !isAMQPTransientError(err) {
 			return nil, err
 		}
 		// if we get here, something failed.  recover and try again
-		// TODO: presumably there are certain errors we don't want to retry
 		_ = r.Recover(ctx)
 		select {
 		case <-ctx.Done():
@@ -143,6 +143,26 @@ func (r *rpcClient) doRPCWithRetry(ctx context.Context, address string, msg *amq
 			retries++
 		}
 	}
+}
+
+// returns true if the AMQP error is considered transient
+func isAMQPTransientError(err error) bool {
+	if errors.Is(err, amqp.ErrConnClosed) {
+		return true
+	}
+	var cre common.Retryable
+	if errors.As(err, &cre) {
+		return true
+	}
+	var amqpErr *amqp.Error
+	if errors.As(err, &amqpErr) {
+		return true
+	}
+	var amqpDetach *amqp.DetachError
+	if errors.As(err, &amqpDetach) {
+		return true
+	}
+	return false
 }
 
 func (r *rpcClient) ReceiveDeferred(ctx context.Context, mode ReceiveMode, sequenceNumbers ...int64) ([]*Message, error) {
