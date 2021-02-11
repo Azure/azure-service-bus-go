@@ -68,8 +68,8 @@ func newRPCClient(ctx context.Context, ec entityConnector, opts ...rpcClientOpti
 	return r, nil
 }
 
-// newClient will replace the existing client and restart auth auto-refresh.
-// any pre-existing client should be closed before calling this method.
+// newClient will replace the existing client and start auth auto-refresh.
+// any pre-existing client MUST be closed before calling this method.
 // NOTE: this does *not* take the write lock, callers must hold it as required!
 func (r *rpcClient) newClient(ctx context.Context) error {
 	var err error
@@ -114,7 +114,7 @@ func (r *rpcClient) close() error {
 	return r.client.Close()
 }
 
-// creates a new link and sends the RPC request, recovering on failure
+// creates a new link and sends the RPC request, recovering and retrying on certain AMQP errors
 func (r *rpcClient) doRPCWithRetry(ctx context.Context, address string, msg *amqp.Message, times int, delay time.Duration, opts ...rpc.LinkOption) (*rpc.Response, error) {
 	for {
 		r.clientMu.RLock()
