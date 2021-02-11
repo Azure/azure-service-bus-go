@@ -116,7 +116,6 @@ func (r *rpcClient) close() error {
 
 // creates a new link and sends the RPC request, recovering on failure
 func (r *rpcClient) doRPCWithRetry(ctx context.Context, address string, msg *amqp.Message, times int, delay time.Duration, opts ...rpc.LinkOption) (*rpc.Response, error) {
-	retries := 0
 	for {
 		r.clientMu.RLock()
 		client := r.client
@@ -131,37 +130,51 @@ func (r *rpcClient) doRPCWithRetry(ctx context.Context, address string, msg *amq
 				return rsp, err
 			}
 		}
-		if retries >= amqpRetryDefaultTimes || !isAMQPTransientError(err) {
+		if !isAMQPTransientError(ctx, err) {
 			return nil, err
 		}
-		// if we get here, something failed.  recover and try again
-		_ = r.Recover(ctx)
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(amqpRetryDefaultDelay):
-			retries++
+		// if we get here, recover and try again
+		tab.For(ctx).Debug("recovering RPC connection")
+		_, retryErr := common.Retry(amqpRetryDefaultTimes, amqpRetryDefaultDelay, func() (interface{}, error) {
+			ctx, sp := r.startProducerSpanFromContext(ctx, "sb.rpcClient.doRPCWithRetry.tryRecover")
+			defer sp.End()
+			if err := r.Recover(ctx); err == nil {
+				tab.For(ctx).Debug("recovered RPC connection")
+				return nil, nil
+			}
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			default:
+				return nil, common.Retryable(err.Error())
+			}
+		})
+		if retryErr != nil {
+			tab.For(ctx).Debug("RPC recovering retried, but error was unrecoverable")
+			return nil, retryErr
 		}
 	}
 }
 
 // returns true if the AMQP error is considered transient
-func isAMQPTransientError(err error) bool {
-	if errors.Is(err, amqp.ErrConnClosed) {
-		return true
-	}
-	var cre common.Retryable
-	if errors.As(err, &cre) {
-		return true
-	}
-	var amqpErr *amqp.Error
-	if errors.As(err, &amqpErr) {
-		return true
-	}
+func isAMQPTransientError(ctx context.Context, err error) bool {
+	// always retry on a detach error
 	var amqpDetach *amqp.DetachError
 	if errors.As(err, &amqpDetach) {
 		return true
 	}
+	// for an AMQP error, only retry depending on the condition
+	var amqpErr *amqp.Error
+	if errors.As(err, &amqpErr) {
+		switch amqpErr.Condition {
+		case errorServerBusy, errorTimeout, errorOperationCancelled, errorContainerClose:
+			return true
+		default:
+			tab.For(ctx).Debug(fmt.Sprintf("isAMQPTransientError: condition %s is not transient", amqpErr.Condition))
+			return false
+		}
+	}
+	tab.For(ctx).Debug(fmt.Sprintf("isAMQPTransientError: %T is not transient", err))
 	return false
 }
 
