@@ -62,7 +62,7 @@ jobs:
         displayName: 'Lint'
 
       - script: |
-          gocyclo -over 19 .
+          gocyclo -over 19 $(ls *.go | grep -v _test.go)
         workingDirectory: '$(sdkPath)'
         displayName: 'Cyclo'
 
