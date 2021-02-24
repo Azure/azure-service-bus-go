@@ -33,8 +33,7 @@ type amqpHandler interface {
 	Handle(ctx context.Context, msg *amqp.Message) error
 }
 
-// Concurrent is a servicebus handler starts concurrent workers processing messages
-// maxConcurrency configures the maximum of concurrent workers started by the handler
+// amqpAdapterHandler is a middleware handler that translates amqp messages into servicebus messages
 type amqpAdapterHandler struct {
 	next     Handler
 	receiver *Receiver
@@ -48,7 +47,7 @@ func newAmqpAdapterHandler(receiver *Receiver, next Handler) *amqpAdapterHandler
 }
 
 func (h *amqpAdapterHandler) Handle(ctx context.Context, msg *amqp.Message) error {
-	const optName = "sb.Receiver.handleMessage"
+	const optName = "sb.amqpHandler.Handle"
 
 	event, err := messageFromAMQPMessage(msg)
 	if err != nil {
