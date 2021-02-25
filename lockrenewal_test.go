@@ -50,7 +50,7 @@ func testQueueSendAndReceiveWithRenewLock(ctx context.Context, t *testing.T, que
 
 	renewEvery := time.Second * 6
 	// all are held in memory. we wait a bit longer than the lock expiry set to 10s
-	processingTime := 15*time.Second
+	processingTime := 15 * time.Second
 	t.Logf("processing time : %s", processingTime)
 	fmt.Printf("processing time : %s \n", processingTime)
 	t.Logf("Sending/receiving %d messages", numMessages)
