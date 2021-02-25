@@ -2,6 +2,7 @@ package servicebus
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -12,7 +13,7 @@ import (
 )
 
 func (suite *serviceBusSuite) TestQueueSendReceiveWithLock() {
-	tests := map[string]func(context.Context, *testing.T, *Queue){
+	tests := map[string]func(context.Context, *testing.T, *Queue, int){
 		"SimpleSendReceiveWithLock": testQueueSendAndReceiveWithRenewLock,
 	}
 
@@ -22,13 +23,14 @@ func (suite *serviceBusSuite) TestQueueSendReceiveWithLock() {
 			queueName := suite.randEntityName()
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*300)
 			defer cancel()
-			lockDuration := 30 * time.Second
+			lockDuration := 10 * time.Second
 
 			cleanup := makeQueue(ctx, t, ns, queueName, QueueEntityWithLockDuration(&lockDuration))
-			q, err := ns.NewQueue(queueName)
+			numMessages := rand.Intn(40) + 10
+			q, err := ns.NewQueue(queueName, QueueWithPrefetchCount(uint32(numMessages)))
 			suite.NoError(err)
 			defer cleanup()
-			testFunc(ctx, t, q)
+			testFunc(ctx, t, q, numMessages)
 			suite.NoError(q.Close(ctx))
 			if !t.Failed() {
 				// If there are message on the queue this would mean that a lock wasn't held and the message was requeued.
@@ -39,17 +41,18 @@ func (suite *serviceBusSuite) TestQueueSendReceiveWithLock() {
 	}
 }
 
-func testQueueSendAndReceiveWithRenewLock(ctx context.Context, t *testing.T, queue *Queue) {
+func testQueueSendAndReceiveWithRenewLock(ctx context.Context, t *testing.T, queue *Queue, numMessages int) {
 	ttl := 5 * time.Minute
-	numMessages := rand.Intn(40) + 20
 	activeMessages := make([]*Message, 0, numMessages)
 	expected := make(map[string]int, numMessages)
 	seen := make(map[string]int, numMessages)
 	errs := make(chan error, 1)
 
-	renewEvery := time.Second * 20
-	processingTime := time.Second * 100
-
+	renewEvery := time.Second * 6
+	// all are held in memory. we wait a bit longer than the lock expiry set to 10s
+	processingTime := 15*time.Second
+	t.Logf("processing time : %s", processingTime)
+	fmt.Printf("processing time : %s \n", processingTime)
 	t.Logf("Sending/receiving %d messages", numMessages)
 
 	// Receiving Loop
@@ -59,7 +62,7 @@ func testQueueSendAndReceiveWithRenewLock(ctx context.Context, t *testing.T, que
 		errs <- queue.Receive(inner, HandlerFunc(func(ctx context.Context, msg *Message) error {
 			numSeen++
 			seen[string(msg.Data)]++
-
+			fmt.Printf("handling message %d - %s \n", numSeen, msg.LockToken)
 			activeMessages = append(activeMessages, msg)
 			if numSeen >= numMessages {
 				cancel()
@@ -81,6 +84,7 @@ func testQueueSendAndReceiveWithRenewLock(ctx context.Context, t *testing.T, que
 			if err != nil && runRenewal {
 				t.Error(err)
 			}
+			fmt.Printf("renewed locks successfuly for %d messages\n", len(activeMessages))
 		}
 	}()
 
@@ -100,6 +104,7 @@ func testQueueSendAndReceiveWithRenewLock(ctx context.Context, t *testing.T, que
 
 	// Then finally accept all the messages we're holding locks on
 	for _, msg := range activeMessages {
+		fmt.Printf("completing %d messages", len(activeMessages))
 		assert.NoError(t, msg.Complete(ctx))
 	}
 
