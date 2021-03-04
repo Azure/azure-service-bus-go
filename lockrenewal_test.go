@@ -24,7 +24,6 @@ package servicebus
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -74,7 +73,7 @@ func testQueueSendAndReceiveWithRenewLock(ctx context.Context, t *testing.T, que
 	// all are held in memory. we wait a bit longer than the lock expiry set to 10s
 	processingTime := 15 * time.Second
 	t.Logf("processing time : %s", processingTime)
-	fmt.Printf("processing time : %s \n", processingTime)
+	t.Logf("processing time : %s \n", processingTime)
 	t.Logf("Sending/receiving %d messages", numMessages)
 
 	// Receiving Loop
@@ -84,7 +83,7 @@ func testQueueSendAndReceiveWithRenewLock(ctx context.Context, t *testing.T, que
 		errs <- queue.Receive(inner, HandlerFunc(func(ctx context.Context, msg *Message) error {
 			numSeen++
 			seen[string(msg.Data)]++
-			fmt.Printf("handling message %d - %s \n", numSeen, msg.LockToken)
+			t.Logf("handling message %d - %s \n", numSeen, msg.LockToken)
 			activeMessages = append(activeMessages, msg)
 			if numSeen >= numMessages {
 				cancel()
@@ -106,7 +105,7 @@ func testQueueSendAndReceiveWithRenewLock(ctx context.Context, t *testing.T, que
 			if err != nil && runRenewal {
 				t.Error(err)
 			}
-			fmt.Printf("renewed locks successfuly for %d messages\n", len(activeMessages))
+			t.Logf("renewed locks successfuly for %d messages\n", len(activeMessages))
 		}
 	}()
 
@@ -126,7 +125,7 @@ func testQueueSendAndReceiveWithRenewLock(ctx context.Context, t *testing.T, que
 
 	// Then finally accept all the messages we're holding locks on
 	for _, msg := range activeMessages {
-		fmt.Printf("completing %d messages", len(activeMessages))
+		t.Logf("completing %d messages", len(activeMessages))
 		assert.NoError(t, msg.Complete(ctx))
 	}
 
