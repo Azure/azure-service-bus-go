@@ -200,6 +200,11 @@ func (m *Message) Abandon(ctx context.Context) error {
 	return m.message.Modify(ctx, false, false, nil)
 }
 
+// Ignore notifies underlying amqp message pump that the message has been handled without any disposition.
+func (m *Message) Ignore() {
+	m.message.Ignore()
+}
+
 // Defer will set aside the message for later processing
 //
 // When a queue or subscription client receives a message that it is willing to process, but for which processing is
