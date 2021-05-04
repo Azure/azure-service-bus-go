@@ -396,6 +396,7 @@ func (r *rpcClient) RenewLocks(ctx context.Context, messages ...*Message) error 
 	ctx, span := startConsumerSpanFromContext(ctx, "sb.RenewLocks")
 	defer span.End()
 
+	var linkName string
 	lockTokens := make([]amqp.UUID, 0, len(messages))
 	for _, m := range messages {
 		if m.LockToken == nil {
@@ -405,6 +406,9 @@ func (r *rpcClient) RenewLocks(ctx context.Context, messages ...*Message) error 
 
 		amqpLockToken := amqp.UUID(*m.LockToken)
 		lockTokens = append(lockTokens, amqpLockToken)
+		if linkName == "" {
+			linkName = m.GetLinkName()
+		}
 	}
 
 	if len(lockTokens) < 1 {
@@ -415,6 +419,7 @@ func (r *rpcClient) RenewLocks(ctx context.Context, messages ...*Message) error 
 	renewRequestMsg := &amqp.Message{
 		ApplicationProperties: map[string]interface{}{
 			operationFieldName: lockRenewalOperationName,
+			associatedLinkName: linkName,
 		},
 		Value: map[string]interface{}{
 			lockTokensFieldName: lockTokens,
