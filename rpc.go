@@ -407,7 +407,7 @@ func (r *rpcClient) RenewLocks(ctx context.Context, messages ...*Message) error 
 		amqpLockToken := amqp.UUID(*m.LockToken)
 		lockTokens = append(lockTokens, amqpLockToken)
 		if linkName == "" {
-			linkName = m.GetLinkName()
+			linkName = m.getLinkName()
 		}
 	}
 

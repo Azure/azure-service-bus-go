@@ -131,8 +131,8 @@ func NewMessage(data []byte) *Message {
 	}
 }
 
-// GetLinkName returns associated link name or empty string if receiver or link is not defined,
-func (m *Message) GetLinkName() string {
+// getLinkName returns associated link name or empty string if receiver or link is not defined,
+func (m *Message) getLinkName() string {
 	return m.message.GetLinkName()
 }
 
