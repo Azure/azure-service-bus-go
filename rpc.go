@@ -419,11 +419,13 @@ func (r *rpcClient) RenewLocks(ctx context.Context, messages ...*Message) error 
 	renewRequestMsg := &amqp.Message{
 		ApplicationProperties: map[string]interface{}{
 			operationFieldName: lockRenewalOperationName,
-			associatedLinkName: linkName,
 		},
 		Value: map[string]interface{}{
 			lockTokensFieldName: lockTokens,
 		},
+	}
+	if linkName != "" {
+		renewRequestMsg.ApplicationProperties[associatedLinkName] = linkName
 	}
 
 	response, err := r.doRPCWithRetry(ctx, r.ec.ManagementPath(), renewRequestMsg, 3, 1*time.Second)
