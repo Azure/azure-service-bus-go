@@ -15,5 +15,5 @@ require (
 	github.com/mitchellh/mapstructure v1.3.3
 	github.com/stretchr/testify v1.6.1
 	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd // indirect
-	nhooyr.io/websocket v1.8.6
+	nhooyr.io/websocket v1.8.7
 )
