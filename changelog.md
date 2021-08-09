@@ -1,6 +1,6 @@
 # Change Log
 
-## `v0.10.9`
+## `v0.10.15`
 
 - fixing issue #241, where deferring a message with a sequence number could result us encoding it incorrectly 
   and sending it as a negative number.
