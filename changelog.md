@@ -2,8 +2,8 @@
 
 ## `v0.10.15`
 
-- fix issue where deferring a message with a sequence number could result us encoding it incorrectly 
-  and sending it as a negative number. #241
+- fix issue where deferring a message could result us encoding it incorrectly and sending the sequence 
+  number as a negative number. #241
 
 ## `v0.10.14`
 
