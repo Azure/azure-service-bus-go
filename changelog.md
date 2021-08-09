@@ -1,5 +1,10 @@
 # Change Log
 
+## `v0.10.9`
+
+- fixing issue #241, where deferring a message with a sequence number could result us encoding it incorrectly 
+  and sending it as a negative number.
+
 ## `v0.10.8`
 - only retry with retryable amqp errors for sender [#201](https://github.com/Azure/azure-service-bus-go/issues/201)
 
