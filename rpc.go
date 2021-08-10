@@ -120,11 +120,20 @@ func (r *rpcClient) doRPCWithRetry(ctx context.Context, address string, msg *amq
 	// this is to avoid a potential infinite loop if the returned error
 	// is always transient and Recover() doesn't fail.
 	sendCount := 0
+	var link *rpc.Link
+	defer func() {
+		if link == nil {
+			return
+		}
+		if err := link.Close(ctx); err != nil {
+			tab.For(ctx).Error(err)
+		}
+	}()
 	for {
 		r.clientMu.RLock()
 		client := r.client
 		r.clientMu.RUnlock()
-		var link *rpc.Link
+
 		var rsp *rpc.Response
 		var err error
 		link, err = rpc.NewLink(client, address, opts...)
