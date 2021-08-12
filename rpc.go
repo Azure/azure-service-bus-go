@@ -127,14 +127,10 @@ func (r *rpcClient) doRPCWithRetry(ctx context.Context, address string, msg *amq
 			client := r.client
 			r.clientMu.RUnlock()
 
-			var link *rpc.Link
-			var rsp *rpc.Response
-			var err error
-			link, err = rpc.NewLink(client, address, opts...)
+			link, err := rpc.NewLink(client, address, opts...)
 			if err == nil {
 				defer link.Close(ctx)
-				rsp, err = link.RetryableRPC(ctx, times, delay, msg)
-				if err == nil {
+				if rsp, err := link.RetryableRPC(ctx, times, delay, msg); err != nil {
 					return rsp, err
 				}
 			}
@@ -145,7 +141,7 @@ func (r *rpcClient) doRPCWithRetry(ctx context.Context, address string, msg *amq
 			if err := r.rpcConnectionRecoverWithRetry(ctx, err); err != nil {
 				return nil, err
 			}
-			return rsp, err
+			return nil, err
 		}()
 	}
 	return response, err
