@@ -119,60 +119,52 @@ func (r *rpcClient) doRPCWithRetry(ctx context.Context, address string, msg *amq
 	// track the number of times we attempt to perform the RPC call.
 	// this is to avoid a potential infinite loop if the returned error
 	// is always transient and Recover() doesn't fail.
-	var response *rpc.Response
-	var returnedErr error
-	for sendCount := 0; sendCount < amqpRetryDefaultTimes; sendCount++ {
-		response, returnedErr = func() (*rpc.Response, error) {
-			r.clientMu.RLock()
-			client := r.client
-			r.clientMu.RUnlock()
-
-			link, err := rpc.NewLink(client, address, opts...)
-			if err == nil {
-				defer link.Close(ctx)
-				rsp, err := link.RetryableRPC(ctx, times, delay, msg)
-				if err == nil {
-					return rsp, nil
+	sendCount := 0
+	for {
+		r.clientMu.RLock()
+		client := r.client
+		r.clientMu.RUnlock()
+		var link *rpc.Link
+		var rsp *rpc.Response
+		var err error
+		link, err = rpc.NewLink(client, address, opts...)
+		if err == nil {
+			defer func() {
+				if link == nil {
+					return
 				}
+				link.Close(ctx)
+			}()
+			rsp, err = link.RetryableRPC(ctx, times, delay, msg)
+			if err == nil {
+				return rsp, err
 			}
-			if sendCount >= amqpRetryDefaultTimes || !isAMQPTransientError(ctx, err) {
-				return nil, err
-			}
-			if err := r.rpcConnectionRecoverWithRetry(ctx, err); err != nil {
-				return nil, err
-			}
+		}
+		if sendCount >= amqpRetryDefaultTimes || !isAMQPTransientError(ctx, err) {
 			return nil, err
-		}()
-		// return if no error, otherwise loop to retry
-		if returnedErr == nil {
-			return response, nil
+		}
+		sendCount++
+		// if we get here, recover and try again
+		tab.For(ctx).Debug("recovering RPC connection")
+		_, retryErr := common.Retry(amqpRetryDefaultTimes, amqpRetryDefaultDelay, func() (interface{}, error) {
+			ctx, sp := r.startProducerSpanFromContext(ctx, "sb.rpcClient.doRPCWithRetry.tryRecover")
+			defer sp.End()
+			if err := r.Recover(ctx); err == nil {
+				tab.For(ctx).Debug("recovered RPC connection")
+				return nil, nil
+			}
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			default:
+				return nil, common.Retryable(err.Error())
+			}
+		})
+		if retryErr != nil {
+			tab.For(ctx).Debug("RPC recovering retried, but error was unrecoverable")
+			return nil, retryErr
 		}
 	}
-	return response, returnedErr
-}
-
-func (r *rpcClient) rpcConnectionRecoverWithRetry(ctx context.Context, err error) error {
-	// if we get here, recover and try again
-	tab.For(ctx).Debug("recovering RPC connection")
-	_, retryErr := common.Retry(amqpRetryDefaultTimes, amqpRetryDefaultDelay, func() (interface{}, error) {
-		ctx, sp := r.startProducerSpanFromContext(ctx, "sb.rpcClient.doRPCWithRetry.tryRecover")
-		defer sp.End()
-		if err := r.Recover(ctx); err == nil {
-			tab.For(ctx).Debug("recovered RPC connection")
-			return nil, nil
-		}
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-			return nil, common.Retryable(err.Error())
-		}
-	})
-	if retryErr != nil {
-		tab.For(ctx).Debug("RPC recovering retried, but error was unrecoverable")
-		return retryErr
-	}
-	return nil
 }
 
 // returns true if the AMQP error is considered transient
