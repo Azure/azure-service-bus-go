@@ -120,9 +120,9 @@ func (r *rpcClient) doRPCWithRetry(ctx context.Context, address string, msg *amq
 	// this is to avoid a potential infinite loop if the returned error
 	// is always transient and Recover() doesn't fail.
 	var response *rpc.Response
-	var err error
+	var returnedErr error
 	for sendCount := 0; sendCount < amqpRetryDefaultTimes; sendCount++ {
-		response, err = func() (*rpc.Response, error) {
+		response, returnedErr = func() (*rpc.Response, error) {
 			r.clientMu.RLock()
 			client := r.client
 			r.clientMu.RUnlock()
@@ -130,21 +130,25 @@ func (r *rpcClient) doRPCWithRetry(ctx context.Context, address string, msg *amq
 			link, err := rpc.NewLink(client, address, opts...)
 			if err == nil {
 				defer link.Close(ctx)
-				if rsp, err := link.RetryableRPC(ctx, times, delay, msg); err != nil {
-					return rsp, err
+				rsp, err := link.RetryableRPC(ctx, times, delay, msg)
+				if err == nil {
+					return rsp, nil
 				}
 			}
 			if sendCount >= amqpRetryDefaultTimes || !isAMQPTransientError(ctx, err) {
 				return nil, err
 			}
-			sendCount++
 			if err := r.rpcConnectionRecoverWithRetry(ctx, err); err != nil {
 				return nil, err
 			}
 			return nil, err
 		}()
+		// return if no error, otherwise loop to retry
+		if returnedErr == nil {
+			return response, nil
+		}
 	}
-	return response, err
+	return response, returnedErr
 }
 
 func (r *rpcClient) rpcConnectionRecoverWithRetry(ctx context.Context, err error) error {
