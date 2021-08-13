@@ -1,5 +1,10 @@
 # Change Log
 
+## `v0.10.16`
+
+- fixed an issue where links weren't being closed when retrying
+- fixed an issue where auto-refreshing of claims would exit due to a transient error
+
 ## `v0.10.15`
 
 - fix issue where deferring a message could result us encoding it incorrectly and sending the sequence 

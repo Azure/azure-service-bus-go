@@ -52,7 +52,7 @@ const (
 	//`
 
 	// Version is the semantic version number
-	Version = "0.10.11"
+	Version = "0.10.16"
 
 	rootUserAgent = "/golang-service-bus"
 
@@ -266,10 +266,20 @@ func (ns *Namespace) negotiateClaim(ctx context.Context, client *amqp.Client, en
 				case <-time.After(15 * time.Minute):
 					refreshCtx, span := ns.startSpanFromContext(refreshCtx, "sb.namespace.negotiateClaim.refresh")
 					defer span.End()
-					if err := cbs.NegotiateClaim(refreshCtx, audience, client, ns.TokenProvider); err != nil {
+					// refresh credentials until it succeeds
+					for {
+						err := cbs.NegotiateClaim(refreshCtx, audience, client, ns.TokenProvider)
+						if err == nil {
+							break
+						}
+						// the refresh failed, wait a few seconds then try again
 						tab.For(refreshCtx).Error(err)
-						// if auth failed cancel auto-refresh
-						cancel()
+						select {
+						case <-refreshCtx.Done():
+							break
+						case <-time.After(5 * time.Second):
+							// retry
+						}
 					}
 				}
 			}
