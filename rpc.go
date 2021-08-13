@@ -129,6 +129,12 @@ func (r *rpcClient) doRPCWithRetry(ctx context.Context, address string, msg *amq
 		var err error
 		link, err = rpc.NewLink(client, address, opts...)
 		if err == nil {
+			defer func() {
+				if link == nil {
+					return
+				}
+				link.Close(ctx)
+			}()
 			rsp, err = link.RetryableRPC(ctx, times, delay, msg)
 			if err == nil {
 				return rsp, err
