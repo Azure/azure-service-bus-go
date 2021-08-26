@@ -39,9 +39,12 @@ import (
 
 type (
 	rpcClient struct {
-		ec                 entityConnector
-		client             *amqp.Client
-		clientMu           sync.RWMutex
+		ec     entityConnector
+		client *amqp.Client
+
+		clientMu sync.RWMutex
+		links    map[string]*rpc.Link // stores 'address' => rpc.Link. Currently only caches links created without options (ie: non-session links)
+
 		sessionID          *string
 		isSessionFilterSet bool
 		cancelAuthRefresh  func() <-chan struct{}
@@ -52,7 +55,8 @@ type (
 
 func newRPCClient(ctx context.Context, ec entityConnector, opts ...rpcClientOption) (*rpcClient, error) {
 	r := &rpcClient{
-		ec: ec,
+		ec:    ec,
+		links: map[string]*rpc.Link{},
 	}
 
 	for _, opt := range opts {
@@ -111,7 +115,62 @@ func (r *rpcClient) close() error {
 	if r.cancelAuthRefresh != nil {
 		<-r.cancelAuthRefresh()
 	}
+
+	r.clearCachedLinks(context.Background())
+
+	r.links = map[string]*rpc.Link{}
 	return r.client.Close()
+}
+
+// clearCachedLinks removes any cached links with the assumption that we are
+// recovering and do not care about errors that occur with links.
+func (r *rpcClient) clearCachedLinks(ctx context.Context) {
+	var links []*rpc.Link
+
+	r.clientMu.Lock()
+	for _, link := range r.links {
+		links = append(links, link)
+	}
+
+	// make a new links map - Recover() also goes through here (through `close`)
+	// so we should be prepared to handle more cached links.
+	r.links = map[string]*rpc.Link{}
+	r.clientMu.Unlock()
+
+	for _, link := range links {
+		link.Close(ctx)
+	}
+}
+
+func (r *rpcClient) getCachedLink(ctx context.Context, address string) (*rpc.Link, error) {
+	r.clientMu.RLock()
+	link, ok := r.links[address]
+	r.clientMu.RUnlock()
+
+	if ok {
+		return link, nil
+	}
+
+	// possibly need to create the link
+	r.clientMu.Lock()
+	defer r.clientMu.Unlock()
+
+	// might have been added in between us checking and
+	// us getting the lock.
+	link, ok = r.links[address]
+
+	if ok {
+		return link, nil
+	}
+
+	link, err := rpc.NewLink(r.client, address)
+
+	if err != nil {
+		return nil, err
+	}
+
+	r.links[address] = link
+	return link, nil
 }
 
 // creates a new link and sends the RPC request, recovering and retrying on certain AMQP errors
@@ -127,19 +186,35 @@ func (r *rpcClient) doRPCWithRetry(ctx context.Context, address string, msg *amq
 		var link *rpc.Link
 		var rsp *rpc.Response
 		var err error
-		link, err = rpc.NewLink(client, address, opts...)
+		isCachedLink := false
+
+		if len(opts) == 0 {
+			// Can use a cached client since there's nothing unique about this particular
+			// link for this call.
+			// It looks like creating a management link with a session filter is the
+			// only time we don't do this.
+			isCachedLink = true
+			link, err = r.getCachedLink(ctx, address)
+		} else {
+			link, err = rpc.NewLink(client, address)
+		}
+
 		if err == nil {
 			defer func() {
-				if link == nil {
+				if isCachedLink || link == nil {
+					// cached links are closed by `rpcClient.close()`
+					// (which is also called during recovery)
 					return
 				}
+
 				link.Close(ctx)
 			}()
 			rsp, err = link.RetryableRPC(ctx, times, delay, msg)
 			if err == nil {
-				return rsp, err
+				return rsp, nil
 			}
 		}
+
 		if sendCount >= amqpRetryDefaultTimes || !isAMQPTransientError(ctx, err) {
 			return nil, err
 		}
@@ -149,10 +224,12 @@ func (r *rpcClient) doRPCWithRetry(ctx context.Context, address string, msg *amq
 		_, retryErr := common.Retry(amqpRetryDefaultTimes, amqpRetryDefaultDelay, func() (interface{}, error) {
 			ctx, sp := r.startProducerSpanFromContext(ctx, "sb.rpcClient.doRPCWithRetry.tryRecover")
 			defer sp.End()
+
 			if err := r.Recover(ctx); err == nil {
 				tab.For(ctx).Debug("recovered RPC connection")
 				return nil, nil
 			}
+
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()

@@ -22,7 +22,6 @@ type (
 	}
 
 	receivingEntity struct {
-		renewMessageLockMutex sync.Mutex
 		*entity
 	}
 
@@ -191,9 +190,6 @@ func (re *receivingEntity) ReceiveDeferredWithMode(ctx context.Context, handler 
 func (re *receivingEntity) RenewLocks(ctx context.Context, messages ...*Message) error {
 	ctx, span := re.startSpanFromContext(ctx, "sb.receivingEntity.RenewLocks")
 	defer span.End()
-
-	re.renewMessageLockMutex.Lock()
-	defer re.renewMessageLockMutex.Unlock()
 
 	client, err := re.entity.GetRPCClient(ctx)
 	if err != nil {
