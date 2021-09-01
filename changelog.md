@@ -1,5 +1,11 @@
 # Change Log
 
+## `v0.10.17`
+
+- Use a singleton instance of the management link, avoiding creating a link per management
+  link operations like dispositions or lock renewals. 
+  [PR#248](https://github.com/Azure/azure-service-bus-go/pull/248)
+
 ## `v0.10.16`
 
 - fixed an issue where links weren't being closed when retrying
