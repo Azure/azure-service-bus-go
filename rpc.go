@@ -92,7 +92,6 @@ func newRPCClient(ctx context.Context, ec entityConnector, opts ...rpcClientOpti
 }
 
 // newAMQPClient creates a client and starts auth auto-refresh.
-
 func newAMQPClient(ctx context.Context, ec entityConnector) (*amqp.Client, func() <-chan struct{}, error) {
 	client, err := ec.Namespace().newClient(ctx)
 	if err != nil {
