@@ -92,8 +92,7 @@ func newRPCClient(ctx context.Context, ec entityConnector, opts ...rpcClientOpti
 }
 
 // newAMQPClient creates a client and starts auth auto-refresh.
-// NOTE: this function can "partially" succeed. The returned amqp.Client should always be closed,
-// even when an error is returned.
+
 func newAMQPClient(ctx context.Context, ec entityConnector) (*amqp.Client, func() <-chan struct{}, error) {
 	client, err := ec.Namespace().newClient(ctx)
 	if err != nil {
@@ -103,9 +102,8 @@ func newAMQPClient(ctx context.Context, ec entityConnector) (*amqp.Client, func(
 	cancelAuthRefresh, err := ec.Namespace().negotiateClaim(ctx, client, ec.ManagementPath())
 
 	if err != nil {
-		// it's important to return the `client` here so the calling code
-		// can cleanup properly.
-		return client, nil, err
+		client.Close()
+		return nil, nil, err
 	}
 
 	return client, cancelAuthRefresh, nil
