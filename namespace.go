@@ -75,6 +75,11 @@ type (
 		initRefresh sync.Once
 		// populated with the result from auto-refresh, to be called elsewhere
 		cancelRefresh func() <-chan struct{}
+
+		// for testing
+
+		// alias for 'amqp.Dial'
+		amqpDial func(addr string, opts ...amqp.ConnOption) (*amqp.Client, error)
 	}
 
 	// NamespaceOption provides structure for configuring a new Service Bus namespace
@@ -189,6 +194,7 @@ func NamespaceWithTokenProvider(provider auth.TokenProvider) NamespaceOption {
 func NewNamespace(opts ...NamespaceOption) (*Namespace, error) {
 	ns := &Namespace{
 		Environment: azure.PublicCloud,
+		amqpDial:    amqp.Dial,
 	}
 
 	for _, opt := range opts {
@@ -235,7 +241,7 @@ func (ns *Namespace) newClient(ctx context.Context) (*amqp.Client, error) {
 		return amqp.New(nConn, append(defaultConnOptions, amqp.ConnServerHostname(ns.getHostname()))...)
 	}
 
-	return amqp.Dial(ns.getAMQPHostURI(), defaultConnOptions...)
+	return ns.amqpDial(ns.getAMQPHostURI(), defaultConnOptions...)
 }
 
 // negotiateClaim performs initial authentication and starts periodic refresh of credentials.
