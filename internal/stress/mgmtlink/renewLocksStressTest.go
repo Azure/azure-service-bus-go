@@ -39,12 +39,12 @@ func main() {
 
 	for i := 0; i < QUEUE_PREFETCH; i++ {
 		ch <- true
-		go func() {
+		go func(i int) {
 			defer func() { <-ch }()
 			if err = sender.Send(ctx, &servicebus.Message{Data: []byte(fmt.Sprintf("hello world %d", i))}); err != nil {
 				log.Fatalf("Failed to send message: %s", err.Error())
 			}
-		}()
+		}(i)
 	}
 
 	queue, err := ns.NewQueue(queueName, servicebus.QueueWithPrefetchCount(QUEUE_PREFETCH))
