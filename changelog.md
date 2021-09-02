@@ -1,6 +1,6 @@
 # Change Log
 
-## `v0.10.17`
+## `v0.11.0`
 
 - Use a singleton instance of the management link, avoiding creating a link per management
   link operations like dispositions or lock renewals. 
