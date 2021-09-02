@@ -13,8 +13,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
-const QUEUE_PREFETCH = 1000
-const RENEWALS_PER_MESSAGE = 2
+const queuePrefetch = 1000
+const renewalsPerMessage = 2
 
 func main() {
 	ctx := context.Background()
@@ -37,7 +37,7 @@ func main() {
 
 	ch := make(chan bool, 100)
 
-	for i := 0; i < QUEUE_PREFETCH; i++ {
+	for i := 0; i < queuePrefetch; i++ {
 		ch <- true
 		go func(i int) {
 			defer func() { <-ch }()
@@ -47,7 +47,7 @@ func main() {
 		}(i)
 	}
 
-	queue, err := ns.NewQueue(queueName, servicebus.QueueWithPrefetchCount(QUEUE_PREFETCH))
+	queue, err := ns.NewQueue(queueName, servicebus.QueueWithPrefetchCount(queuePrefetch))
 
 	if err != nil {
 		log.Fatalf("Failed to create receiver: %s", err.Error())
@@ -77,7 +77,7 @@ func main() {
 		go func() {
 			worked := false
 
-			for i := 0; i < RENEWALS_PER_MESSAGE; i++ {
+			for i := 0; i < renewalsPerMessage; i++ {
 				atomic.AddInt32(&outstandingRenewals, 1)
 				if err := queue.RenewLocks(ctx, m); err != nil {
 					worked = false
