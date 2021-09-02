@@ -39,12 +39,26 @@ import (
 
 type (
 	rpcClient struct {
-		ec                 entityConnector
-		client             *amqp.Client
-		clientMu           sync.RWMutex
+		ec     entityConnector
+		client *amqp.Client
+
+		clientMu  sync.RWMutex
+		linkCache map[string]*rpc.Link // stores 'address' => rpc.Link.
+
 		sessionID          *string
 		isSessionFilterSet bool
 		cancelAuthRefresh  func() <-chan struct{}
+
+		// replaceable for testing
+
+		// alias of 'rpc.NewLink'
+		newRPCLink func(conn *amqp.Client, address string, opts ...rpc.LinkOption) (*rpc.Link, error)
+
+		// alias of function 'newAMQPClient'
+		newAMQPClient func(ctx context.Context, ec entityConnector) (*amqp.Client, func() <-chan struct{}, error)
+
+		// alias of 'amqp.Client.Close()'
+		closeAMQPClient func() error
 	}
 
 	rpcClientOption func(*rpcClient) error
@@ -52,8 +66,13 @@ type (
 
 func newRPCClient(ctx context.Context, ec entityConnector, opts ...rpcClientOption) (*rpcClient, error) {
 	r := &rpcClient{
-		ec: ec,
+		ec:            ec,
+		linkCache:     map[string]*rpc.Link{},
+		newRPCLink:    rpc.NewLink,
+		newAMQPClient: newAMQPClient,
 	}
+
+	r.closeAMQPClient = func() error { return r.client.Close() }
 
 	for _, opt := range opts {
 		if err := opt(r); err != nil {
@@ -61,27 +80,32 @@ func newRPCClient(ctx context.Context, ec entityConnector, opts ...rpcClientOpti
 			return nil, err
 		}
 	}
-	if err := r.newClient(ctx); err != nil {
+
+	var err error
+	r.client, r.cancelAuthRefresh, err = r.newAMQPClient(ctx, r.ec)
+
+	if err != nil {
 		tab.For(ctx).Error(err)
 		return nil, err
 	}
 	return r, nil
 }
 
-// newClient will replace the existing client and start auth auto-refresh.
-// any pre-existing client MUST be closed before calling this method.
-// NOTE: this does *not* take the write lock, callers must hold it as required!
-func (r *rpcClient) newClient(ctx context.Context) error {
-	var err error
-	r.client, err = r.ec.Namespace().newClient(ctx)
+// newAMQPClient creates a client and starts auth auto-refresh.
+func newAMQPClient(ctx context.Context, ec entityConnector) (*amqp.Client, func() <-chan struct{}, error) {
+	client, err := ec.Namespace().newClient(ctx)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-	r.cancelAuthRefresh, err = r.ec.Namespace().negotiateClaim(ctx, r.client, r.ec.ManagementPath())
+
+	cancelAuthRefresh, err := ec.Namespace().negotiateClaim(ctx, client, ec.ManagementPath())
+
 	if err != nil {
-		return err
+		client.Close()
+		return nil, nil, err
 	}
-	return nil
+
+	return client, cancelAuthRefresh, nil
 }
 
 // Recover will attempt to close the current session and link, then rebuild them
@@ -92,7 +116,11 @@ func (r *rpcClient) Recover(ctx context.Context) error {
 	r.clientMu.Lock()
 	defer r.clientMu.Unlock()
 	_ = r.close()
-	if err := r.newClient(ctx); err != nil {
+
+	var err error
+	r.client, r.cancelAuthRefresh, err = r.newAMQPClient(ctx, r.ec)
+
+	if err != nil {
 		tab.For(ctx).Error(err)
 		return err
 	}
@@ -111,7 +139,60 @@ func (r *rpcClient) close() error {
 	if r.cancelAuthRefresh != nil {
 		<-r.cancelAuthRefresh()
 	}
-	return r.client.Close()
+
+	// we don't want to interrupt the cleanup of these links.
+	r.resetLinkCache(context.Background())
+
+	return r.closeAMQPClient()
+}
+
+// resetLinkCache removes any cached links with the assumption that we are
+// recovering and do not care about errors that occur with links.
+func (r *rpcClient) resetLinkCache(ctx context.Context) {
+	var links []*rpc.Link
+
+	for _, link := range r.linkCache {
+		links = append(links, link)
+	}
+
+	// make a new links map - Recover() also goes through here (through `close`)
+	// so we should be prepared to handle more cached links.
+	r.linkCache = map[string]*rpc.Link{}
+
+	for _, link := range links {
+		link.Close(ctx)
+	}
+}
+
+func (r *rpcClient) getCachedLink(ctx context.Context, address string) (*rpc.Link, error) {
+	r.clientMu.RLock()
+	link, ok := r.linkCache[address]
+	r.clientMu.RUnlock()
+
+	if ok {
+		return link, nil
+	}
+
+	// possibly need to create the link
+	r.clientMu.Lock()
+	defer r.clientMu.Unlock()
+
+	// might have been added in between us checking and
+	// us getting the lock.
+	link, ok = r.linkCache[address]
+
+	if ok {
+		return link, nil
+	}
+
+	link, err := r.newRPCLink(r.client, address)
+
+	if err != nil {
+		return nil, err
+	}
+
+	r.linkCache[address] = link
+	return link, nil
 }
 
 // creates a new link and sends the RPC request, recovering and retrying on certain AMQP errors
@@ -127,19 +208,35 @@ func (r *rpcClient) doRPCWithRetry(ctx context.Context, address string, msg *amq
 		var link *rpc.Link
 		var rsp *rpc.Response
 		var err error
-		link, err = rpc.NewLink(client, address, opts...)
+		isCachedLink := false
+
+		if len(opts) == 0 {
+			// Can use a cached client since there's nothing unique about this particular
+			// link for this call.
+			// It looks like creating a management link with a session filter is the
+			// only time we don't do this.
+			isCachedLink = true
+			link, err = r.getCachedLink(ctx, address)
+		} else {
+			link, err = rpc.NewLink(client, address)
+		}
+
 		if err == nil {
 			defer func() {
-				if link == nil {
+				if isCachedLink || link == nil {
+					// cached links are closed by `rpcClient.close()`
+					// (which is also called during recovery)
 					return
 				}
+
 				link.Close(ctx)
 			}()
 			rsp, err = link.RetryableRPC(ctx, times, delay, msg)
 			if err == nil {
-				return rsp, err
+				return rsp, nil
 			}
 		}
+
 		if sendCount >= amqpRetryDefaultTimes || !isAMQPTransientError(ctx, err) {
 			return nil, err
 		}
@@ -149,10 +246,12 @@ func (r *rpcClient) doRPCWithRetry(ctx context.Context, address string, msg *amq
 		_, retryErr := common.Retry(amqpRetryDefaultTimes, amqpRetryDefaultDelay, func() (interface{}, error) {
 			ctx, sp := r.startProducerSpanFromContext(ctx, "sb.rpcClient.doRPCWithRetry.tryRecover")
 			defer sp.End()
+
 			if err := r.Recover(ctx); err == nil {
 				tab.For(ctx).Debug("recovered RPC connection")
 				return nil, nil
 			}
+
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
