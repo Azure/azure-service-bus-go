@@ -15,7 +15,7 @@ func TestRPCLinkCaching(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("WithClose", func(t *testing.T) {
-		fake := createFakeRpcClient()
+		fake := createFakeRPCClient()
 
 		// validate our internal cache properly tracked the link
 		// now getting the link again should get us the cached link.
@@ -29,7 +29,7 @@ func TestRPCLinkCaching(t *testing.T) {
 	})
 
 	t.Run("WithRecover", func(t *testing.T) {
-		fake := createFakeRpcClient()
+		fake := createFakeRPCClient()
 
 		// validate our internal cache properly tracked the link
 		// now getting the link again should get us the cached link.
@@ -70,7 +70,7 @@ type fakeRPCClient struct {
 	createdLinks         []*rpc.Link
 }
 
-func createFakeRpcClient() *fakeRPCClient {
+func createFakeRPCClient() *fakeRPCClient {
 	fake := &fakeRPCClient{}
 
 	fake.rpcClient = &rpcClient{
