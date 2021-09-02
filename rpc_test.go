@@ -46,7 +46,7 @@ func TestRPCLinkCaching(t *testing.T) {
 	})
 }
 
-func addCachedLink(ctx context.Context, t *testing.T, fake *fakeRpcClient) {
+func addCachedLink(ctx context.Context, t *testing.T, fake *fakeRPCClient) {
 	createdLink, err := fake.rpcClient.getCachedLink(ctx, "an address")
 
 	require.NoError(t, err)
@@ -63,15 +63,15 @@ func addCachedLink(ctx context.Context, t *testing.T, fake *fakeRpcClient) {
 	require.Same(t, sameOldLink, createdLink, "Same link instance should always be returned")
 }
 
-type fakeRpcClient struct {
+type fakeRPCClient struct {
 	*rpcClient
 	newAMQPClientCreated bool
 	amqpClientClosed     bool
 	createdLinks         []*rpc.Link
 }
 
-func createFakeRpcClient() *fakeRpcClient {
-	fake := &fakeRpcClient{}
+func createFakeRpcClient() *fakeRPCClient {
+	fake := &fakeRPCClient{}
 
 	fake.rpcClient = &rpcClient{
 		ec:        &fakeEntityConnector{},
