@@ -20,5 +20,4 @@ require (
 
 replace (
 	github.com/Azure/azure-amqp-common-go/v3 v3.1.1 => github.com/richardpark-msft/azure-amqp-common-go/v3 v3.1.1-0.20210901225906-2b1c8554a415
-	github.com/Azure/go-amqp v0.13.13 => github.com/serbrech/go-amqp v0.13.2-0.20210831215711-a68457cdbcc0
 )
