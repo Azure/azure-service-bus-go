@@ -1,5 +1,9 @@
 # Change Log
 
+## `v0.11.1`
+
+- Updating to the latest version of Azure/azure-amqp-common-go.
+
 ## `v0.11.0`
 
 - Use a singleton instance of the management link, avoiding creating a link per management
