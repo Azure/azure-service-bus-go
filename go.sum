@@ -1,5 +1,5 @@
-github.com/Azure/azure-amqp-common-go/v3 v3.1.2 h1:Xu9nboejX9a+7uOGiwEUlpD8/oN4A6f7ZmHTMmJpPkw=
-github.com/Azure/azure-amqp-common-go/v3 v3.1.2/go.mod h1:zN7QL/vfCsq3XQxQaTkg4ScO786CA2rQnZ1LXX7QryE=
+github.com/Azure/azure-amqp-common-go/v3 v3.2.0 h1:BK/3P4TW4z2HLD6G5tMlHRvptOxxi4s9ee5r8sdHBUs=
+github.com/Azure/azure-amqp-common-go/v3 v3.2.0/go.mod h1:zN7QL/vfCsq3XQxQaTkg4ScO786CA2rQnZ1LXX7QryE=
 github.com/Azure/azure-sdk-for-go v51.1.0+incompatible h1:7uk6GWtUqKg6weLv2dbKnzwb0ml1Qn70AdtRccZ543w=
 github.com/Azure/azure-sdk-for-go v51.1.0+incompatible/go.mod h1:9XXNKU+eRnpl9moKnB4QOLf1HestfXbmab5FXxiDBjc=
 github.com/Azure/go-amqp v0.13.13 h1:OBPwCO50EzniOyZR0M4VbGJYDxceIy3SFOnKVMJktdY=
