@@ -173,7 +173,7 @@ func (suite *serviceBusSuite) TestAMQPMessageToMessage() {
 		Data: [][]byte{[]byte("foo")},
 	}
 
-	msg, err := messageFromAMQPMessage(aMsg)
+	msg, err := messageFromAMQPMessage(aMsg, nil)
 	if suite.NoError(err) {
 		suite.Equal(msg.ID, aMsg.Properties.MessageID, "messageID")
 		suite.Equal(*msg.GroupSequence, aMsg.Properties.GroupSequence, "groupSequence")

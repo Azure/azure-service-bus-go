@@ -36,12 +36,11 @@ type (
 	//Messages are received from a subscription identically to the way they are received from a queue.
 	Subscription struct {
 		*receivingEntity
-		Topic             *Topic
-		receiver          *Receiver
-		receiverMu        sync.Mutex
-		receiveMode       ReceiveMode
-		requiredSessionID *string
-		prefetchCount     *uint32
+		Topic         *Topic
+		receiver      *Receiver
+		receiverMu    sync.Mutex
+		receiveMode   ReceiveMode
+		prefetchCount *uint32
 	}
 
 	// SubscriptionOption configures the Subscription Azure Service Bus client

@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/Azure/azure-service-bus-go"
+	servicebus "github.com/Azure/azure-service-bus-go"
 )
 
 func Example_prefetch() {
@@ -84,7 +84,7 @@ func Example_prefetch() {
 			fmt.Println(err)
 			return
 		}
-		totalPrefetch1 <- time.Now().Sub(start)
+		totalPrefetch1 <- time.Since(start)
 	}()
 
 	totalPrefetch1000 := make(chan time.Duration)
@@ -94,7 +94,7 @@ func Example_prefetch() {
 			fmt.Println(err)
 			return
 		}
-		totalPrefetch1000 <- time.Now().Sub(start)
+		totalPrefetch1000 <- time.Since(start)
 	}()
 
 	tp1 := <-totalPrefetch1

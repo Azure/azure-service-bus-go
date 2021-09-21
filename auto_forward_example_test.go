@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/Azure/azure-service-bus-go"
+	servicebus "github.com/Azure/azure-service-bus-go"
 )
 
 type MessagePrinter struct{}
@@ -79,12 +79,12 @@ func Example_autoForward() {
 }
 
 func ensureQueue(ctx context.Context, qm *servicebus.QueueManager, name string, opts ...servicebus.QueueManagementOption) (*servicebus.QueueEntity, error) {
-	qe, err := qm.Get(ctx, name)
+	_, err := qm.Get(ctx, name)
 	if err == nil {
 		_ = qm.Delete(ctx, name)
 	}
 
-	qe, err = qm.Put(ctx, name, opts...)
+	qe, err := qm.Put(ctx, name, opts...)
 	if err != nil {
 		fmt.Println(err)
 		return nil, err

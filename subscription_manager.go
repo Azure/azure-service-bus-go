@@ -553,7 +553,7 @@ func SubscriptionWithLockDuration(window *time.Duration) SubscriptionManagementO
 			window = &duration
 		}
 		if *window > time.Duration(5*time.Minute) {
-			return fmt.Errorf("Lock duration must be shorter than 5 minutes got: %v", *window)
+			return fmt.Errorf("lock duration must be shorter than 5 minutes got: %v", *window)
 		}
 
 		s.LockDuration = ptrString(durationTo8601Seconds(*window))

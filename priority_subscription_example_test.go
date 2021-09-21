@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Azure/azure-service-bus-go"
+	servicebus "github.com/Azure/azure-service-bus-go"
 )
 
 type PrioritySubscription struct {
@@ -171,12 +171,12 @@ func Example_prioritySubscriptions() {
 }
 
 func ensureTopic(ctx context.Context, tm *servicebus.TopicManager, name string, opts ...servicebus.TopicManagementOption) (*servicebus.TopicEntity, error) {
-	te, err := tm.Get(ctx, name)
+	_, err := tm.Get(ctx, name)
 	if err == nil {
 		_ = tm.Delete(ctx, name)
 	}
 
-	te, err = tm.Put(ctx, name, opts...)
+	te, err := tm.Put(ctx, name, opts...)
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
@@ -186,12 +186,12 @@ func ensureTopic(ctx context.Context, tm *servicebus.TopicManager, name string, 
 }
 
 func ensureSubscription(ctx context.Context, sm *servicebus.SubscriptionManager, name string, opts ...servicebus.SubscriptionManagementOption) (*servicebus.SubscriptionEntity, error) {
-	subEntity, err := sm.Get(ctx, name)
+	_, err := sm.Get(ctx, name)
 	if err == nil {
 		_ = sm.Delete(ctx, name)
 	}
 
-	subEntity, err = sm.Put(ctx, name, opts...)
+	subEntity, err := sm.Put(ctx, name, opts...)
 	if err != nil {
 		fmt.Println(err)
 		return nil, err

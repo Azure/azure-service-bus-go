@@ -370,7 +370,7 @@ func (r *rpcClient) ReceiveDeferred(ctx context.Context, mode ReceiveMode, seque
 			return nil, err
 		}
 
-		transformedMessages[i], err = messageFromAMQPMessage(&rehydrated)
+		transformedMessages[i], err = messageFromAMQPMessage(&rehydrated, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -476,7 +476,7 @@ func (r *rpcClient) GetNextPage(ctx context.Context, fromSequenceNumber int64, m
 			return nil, err
 		}
 
-		transformedMessages[i], err = messageFromAMQPMessage(&rehydrated)
+		transformedMessages[i], err = messageFromAMQPMessage(&rehydrated, nil)
 		if err != nil {
 			tab.For(ctx).Error(err)
 			return nil, err
