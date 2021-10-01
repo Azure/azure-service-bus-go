@@ -282,7 +282,7 @@ func (ns *Namespace) negotiateClaim(ctx context.Context, client *amqp.Client, en
 						tab.For(refreshCtx).Error(err)
 						select {
 						case <-refreshCtx.Done():
-							break
+							return
 						case <-time.After(5 * time.Second):
 							// retry
 						}

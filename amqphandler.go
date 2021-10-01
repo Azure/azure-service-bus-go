@@ -30,7 +30,7 @@ import (
 )
 
 type amqpHandler interface {
-	Handle(ctx context.Context, msg *amqp.Message) error
+	Handle(ctx context.Context, msg *amqp.Message, r *amqp.Receiver) error
 }
 
 // amqpAdapterHandler is a middleware handler that translates amqp messages into servicebus messages
@@ -46,10 +46,10 @@ func newAmqpAdapterHandler(receiver *Receiver, next Handler) *amqpAdapterHandler
 	}
 }
 
-func (h *amqpAdapterHandler) Handle(ctx context.Context, msg *amqp.Message) error {
+func (h *amqpAdapterHandler) Handle(ctx context.Context, msg *amqp.Message, r *amqp.Receiver) error {
 	const optName = "sb.amqpHandler.Handle"
 
-	event, err := messageFromAMQPMessage(msg)
+	event, err := messageFromAMQPMessage(msg, r)
 	if err != nil {
 		_, span := h.receiver.startConsumerSpanFromContext(ctx, optName)
 		span.Logger().Error(err)

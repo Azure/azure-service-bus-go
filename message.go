@@ -58,6 +58,7 @@ type (
 		ec               entityConnector // if an entityConnector is present, a message should send disposition via mgmt
 		useSession       bool
 		sessionID        *string
+		receiver         *amqp.Receiver
 	}
 
 	// DispositionAction represents the action to notify Azure Service Bus of the Message's disposition
@@ -133,7 +134,7 @@ func NewMessage(data []byte) *Message {
 
 // getLinkName returns associated link name or empty string if receiver or link is not defined,
 func (m *Message) getLinkName() string {
-	return m.message.GetLinkName()
+	return m.message.LinkName()
 }
 
 // CompleteAction will notify Azure Service Bus that the message was successfully handled and should be deleted from the
@@ -187,7 +188,7 @@ func (m *Message) Complete(ctx context.Context) error {
 		return sendMgmtDisposition(ctx, m, disposition{Status: completedDisposition})
 	}
 
-	return m.message.Accept(ctx)
+	return m.receiver.AcceptMessage(ctx, m.message)
 }
 
 // Abandon will notify Azure Service Bus the message failed but should be re-queued for delivery.
@@ -202,7 +203,7 @@ func (m *Message) Abandon(ctx context.Context) error {
 		return sendMgmtDisposition(ctx, m, d)
 	}
 
-	return m.message.Modify(ctx, false, false, nil)
+	return m.receiver.ModifyMessage(ctx, m.message, false, false, nil)
 }
 
 // Defer will set aside the message for later processing
@@ -228,7 +229,7 @@ func (m *Message) Defer(ctx context.Context) error {
 	_, span := m.startSpanFromContext(ctx, "sb.Message.Defer")
 	defer span.End()
 
-	return m.message.Modify(ctx, true, true, nil)
+	return m.receiver.ModifyMessage(ctx, m.message, true, true, nil)
 }
 
 // Release will notify Azure Service Bus the message should be re-queued without failure.
@@ -259,7 +260,7 @@ func (m *Message) DeadLetter(ctx context.Context, err error) error {
 		Condition:   amqp.ErrorCondition(ErrorInternalError),
 		Description: err.Error(),
 	}
-	return m.message.Reject(ctx, &amqpErr)
+	return m.receiver.RejectMessage(ctx, m.message, &amqpErr)
 
 }
 
@@ -291,7 +292,7 @@ func (m *Message) DeadLetterWithInfo(ctx context.Context, err error, condition M
 		Description: err.Error(),
 		Info:        info,
 	}
-	return m.message.Reject(ctx, &amqpErr)
+	return m.receiver.RejectMessage(ctx, m.message, &amqpErr)
 }
 
 // ScheduleAt will ensure Azure Service Bus delivers the message after the time specified
@@ -402,14 +403,15 @@ func addMapToAnnotations(a amqp.Annotations, m map[string]interface{}) amqp.Anno
 	return a
 }
 
-func messageFromAMQPMessage(msg *amqp.Message) (*Message, error) {
-	return newMessage(msg.GetData(), msg)
+func messageFromAMQPMessage(msg *amqp.Message, r *amqp.Receiver) (*Message, error) {
+	return newMessage(msg.GetData(), msg, r)
 }
 
-func newMessage(data []byte, amqpMsg *amqp.Message) (*Message, error) {
+func newMessage(data []byte, amqpMsg *amqp.Message, r *amqp.Receiver) (*Message, error) {
 	msg := &Message{
-		Data:    data,
-		message: amqpMsg,
+		Data:     data,
+		message:  amqpMsg,
+		receiver: r,
 	}
 
 	if amqpMsg == nil {

@@ -58,7 +58,7 @@ func (bdi *BatchDispositionIterator) Done() bool {
 
 // Next iterates to the next LockToken
 func (bdi *BatchDispositionIterator) Next() (uuid *uuid.UUID) {
-	if done := bdi.Done(); done == false {
+	if done := bdi.Done(); !done {
 		uuid = bdi.LockTokenIDs[bdi.cursor]
 		bdi.cursor++
 	}

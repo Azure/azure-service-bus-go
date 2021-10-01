@@ -347,6 +347,7 @@ func testSubscriptionWithFalseRule(ctx context.Context, t *testing.T, sm *Subscr
 	_, err := sm.PutRule(ctx, s.Name, "falseRule", FalseFilter{})
 	require.NoError(t, err)
 	rules, err := sm.ListRules(ctx, s.Name)
+	require.NoError(t, err)
 	require.Len(t, rules, 2)
 	rule := rules[1]
 	assert.Equal(t, "falseRule", rule.Name)
@@ -359,6 +360,7 @@ func testSubscriptionWithSQLFilterRule(ctx context.Context, t *testing.T, sm *Su
 	_, err := sm.PutRule(ctx, s.Name, "sqlRuleNotNullLabel", SQLFilter{Expression: "label IS NOT NULL"})
 	require.NoError(t, err)
 	rules, err := sm.ListRules(ctx, s.Name)
+	require.NoError(t, err)
 	require.Len(t, rules, 2)
 	rule := rules[1]
 	assert.Equal(t, "sqlRuleNotNullLabel", rule.Name)
@@ -377,6 +379,7 @@ func testSubscriptionWithCorrelationFilterRule(ctx context.Context, t *testing.T
 	_, err := sm.PutRule(ctx, s.Name, "correlationRule", filter)
 	require.NoError(t, err)
 	rules, err := sm.ListRules(ctx, s.Name)
+	require.NoError(t, err)
 	require.Len(t, rules, 2)
 	rule := rules[1]
 	assert.Equal(t, "correlationRule", rule.Name)
@@ -659,6 +662,7 @@ func (suite *serviceBusSuite) TestSubscriptionSessionClient() {
 				subName := suite.randEntityName()
 				subCleanup := makeSubscription(ctx, t, topic, subName, SubscriptionWithRequiredSessions())
 				subscription, err := topic.NewSubscription(subName)
+				suite.Require().NoError(err)
 				id, err := uuid.NewV4()
 				suite.Require().NoError(err)
 				sessionID := id.String()
