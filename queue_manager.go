@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"io/ioutil"
-	"net/http"
 	"strings"
 	"time"
 
@@ -262,7 +261,7 @@ func (qm *QueueManager) Delete(ctx context.Context, name string) error {
 	res, err := qm.entityManager.Delete(ctx, "/"+name)
 	defer closeRes(ctx, res)
 
-	return err
+	return checkForError(ctx, err, res)
 }
 
 // Put creates or updates a Service Bus Queue
@@ -309,8 +308,7 @@ func (qm *QueueManager) Put(ctx context.Context, name string, opts ...QueueManag
 	res, err := qm.entityManager.Put(ctx, "/"+name, reqBytes, mw...)
 	defer closeRes(ctx, res)
 
-	if err != nil {
-		tab.For(ctx).Error(err)
+	if err := checkForError(ctx, err, res); err != nil {
 		return nil, err
 	}
 
@@ -346,8 +344,7 @@ func (qm *QueueManager) List(ctx context.Context, options ...ListQueuesOption) (
 	res, err := qm.entityManager.Get(ctx, basePath)
 	defer closeRes(ctx, res)
 
-	if err != nil {
-		tab.For(ctx).Error(err)
+	if err := checkForError(ctx, err, res); err != nil {
 		return nil, err
 	}
 
@@ -378,13 +375,8 @@ func (qm *QueueManager) Get(ctx context.Context, name string) (*QueueEntity, err
 	res, err := qm.entityManager.Get(ctx, name)
 	defer closeRes(ctx, res)
 
-	if err != nil {
-		tab.For(ctx).Error(err)
+	if err := checkForError(ctx, err, res); err != nil {
 		return nil, err
-	}
-
-	if res.StatusCode == http.StatusNotFound {
-		return nil, ErrNotFound{EntityPath: res.Request.URL.Path}
 	}
 
 	b, err := ioutil.ReadAll(res.Body)
