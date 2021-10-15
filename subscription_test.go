@@ -460,7 +460,12 @@ func (suite *serviceBusSuite) testSubscriptionManager(tests map[string]func(cont
 					defer func(sName string) {
 						ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 						defer cancel()
-						if !suite.NoError(sm.Delete(ctx, sName)) {
+
+						err = sm.Delete(ctx, sName)
+
+						if !IsErrNotFound(err) && !suite.NoError(err) {
+							// not all tests actually create a subscription (some of these tests are
+							// basically unittests)
 							suite.Fail(err.Error())
 						}
 					}(subName)
