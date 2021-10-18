@@ -213,7 +213,7 @@ func (sm *SubscriptionManager) Delete(ctx context.Context, name string) error {
 	res, err := sm.entityManager.Delete(ctx, sm.getResourceURI(name))
 	defer closeRes(ctx, res)
 
-	return err
+	return checkForError(ctx, err, res)
 }
 
 // Put creates or updates a Service Bus Topic
@@ -260,7 +260,7 @@ func (sm *SubscriptionManager) Put(ctx context.Context, name string, opts ...Sub
 	res, err := sm.entityManager.Put(ctx, sm.getResourceURI(name), reqBytes, mw...)
 	defer closeRes(ctx, res)
 
-	if err != nil {
+	if err := checkForError(ctx, err, res); err != nil {
 		return nil, err
 	}
 
@@ -295,7 +295,7 @@ func (sm *SubscriptionManager) List(ctx context.Context, options ...ListSubscrip
 	res, err := sm.entityManager.Get(ctx, basePath)
 	defer closeRes(ctx, res)
 
-	if err != nil {
+	if err := checkForError(ctx, err, res); err != nil {
 		return nil, err
 	}
 
@@ -325,12 +325,8 @@ func (sm *SubscriptionManager) Get(ctx context.Context, name string) (*Subscript
 	res, err := sm.entityManager.Get(ctx, sm.getResourceURI(name))
 	defer closeRes(ctx, res)
 
-	if err != nil {
+	if err := checkForError(ctx, err, res); err != nil {
 		return nil, err
-	}
-
-	if res.StatusCode == http.StatusNotFound {
-		return nil, ErrNotFound{EntityPath: res.Request.URL.Path}
 	}
 
 	b, err := ioutil.ReadAll(res.Body)
@@ -361,12 +357,8 @@ func (sm *SubscriptionManager) ListRules(ctx context.Context, subscriptionName s
 	res, err := sm.entityManager.Get(ctx, sm.getRulesResourceURI(subscriptionName))
 	defer closeRes(ctx, res)
 
-	if err != nil {
+	if err := checkForError(ctx, err, res); err != nil {
 		return nil, err
-	}
-
-	if res.StatusCode == http.StatusNotFound {
-		return nil, ErrNotFound{EntityPath: res.Request.URL.Path}
 	}
 
 	b, err := ioutil.ReadAll(res.Body)
@@ -473,7 +465,7 @@ func (sm *SubscriptionManager) DeleteRule(ctx context.Context, subscriptionName,
 	res, err := sm.entityManager.Delete(ctx, sm.getRuleResourceURI(subscriptionName, ruleName))
 	defer closeRes(ctx, res)
 
-	return err
+	return checkForError(ctx, err, res)
 }
 
 func ruleEntryToEntity(entry *ruleEntry) *RuleEntity {

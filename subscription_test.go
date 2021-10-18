@@ -26,6 +26,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -33,6 +34,7 @@ import (
 
 	"github.com/Azure/azure-amqp-common-go/v3/uuid"
 	"github.com/Azure/azure-sdk-for-go/services/servicebus/mgmt/2015-08-01/servicebus"
+	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -458,7 +460,12 @@ func (suite *serviceBusSuite) testSubscriptionManager(tests map[string]func(cont
 					defer func(sName string) {
 						ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 						defer cancel()
-						if !suite.NoError(sm.Delete(ctx, sName)) {
+
+						err = sm.Delete(ctx, sName)
+
+						if !IsErrNotFound(err) && !suite.NoError(err) {
+							// not all tests actually create a subscription (some of these tests are
+							// basically unittests)
 							suite.Fail(err.Error())
 						}
 					}(subName)
@@ -784,4 +791,131 @@ func checkZeroSubscriptionMessages(ctx context.Context, t *testing.T, topic *Top
 	}
 
 	assert.Fail(t, "message count never reached zero")
+}
+
+func TestErrorMessagesWithMissingPrivileges(t *testing.T) {
+	_ = godotenv.Load()
+
+	// we're obscuring the HTTP errors coming back from the service and
+	// we shouldn't. Just testing some of the common scenarios with a
+	// connection string that lacks Manage privileges.
+	lowPrivCS := os.Getenv("SERVICEBUS_CONNECTION_STRING_NO_MANAGE")
+	normalCS := os.Getenv("SERVICEBUS_CONNECTION_STRING")
+
+	if lowPrivCS == "" || normalCS == "" {
+		t.Skip("Need both SERVICEBUS_CONNECTION_STRING_NO_MANAGE and SERVICEBUS_CONNECTION_STRING")
+	}
+
+	nanoSeconds := time.Now().UnixNano()
+
+	topicName := fmt.Sprintf("topic-%d", nanoSeconds)
+	queueName := fmt.Sprintf("queue-%d", nanoSeconds)
+	subName := "subscription1"
+	ruleName := "rule"
+
+	// create some entities that we need (there's a diff between something not being
+	// found and something failing because of lack of authorization)
+	cleanup := func() func() {
+		ns, err := NewNamespace(NamespaceWithConnectionString(normalCS))
+		qm := ns.NewQueueManager()
+
+		_, err = qm.Put(context.Background(), queueName)
+		require.NoError(t, err)
+
+		tm := ns.NewTopicManager()
+		_, err = tm.Put(context.Background(), topicName)
+		require.NoError(t, err)
+
+		sm, err := ns.NewSubscriptionManager(topicName)
+		require.NoError(t, err)
+
+		_, err = sm.Put(context.Background(), subName)
+		require.NoError(t, err)
+
+		_, err = sm.PutRule(context.Background(), subName, ruleName, TrueFilter{})
+		require.NoError(t, err)
+
+		return func() {
+			require.NoError(t, tm.Delete(context.Background(), topicName)) // should delete the subscription
+			require.NoError(t, qm.Delete(context.Background(), queueName))
+		}
+	}()
+	defer cleanup()
+
+	ns, err := NewNamespace(NamespaceWithConnectionString(lowPrivCS))
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	wg := sync.WaitGroup{}
+	wg.Add(3)
+
+	go func() {
+		defer wg.Done()
+
+		qm := ns.NewQueueManager()
+
+		_, err = qm.Get(ctx, "not-found-queue")
+		require.True(t, IsErrNotFound(err))
+
+		_, err = qm.Get(ctx, queueName)
+		require.EqualError(t, err, "request failed: 401 Unauthorized")
+
+		_, err = qm.List(ctx)
+		require.EqualError(t, err, "request failed: 401 Unauthorized")
+
+		_, err = qm.Put(ctx, "canneverbecreated")
+		require.EqualError(t, err, "request failed: 401 Unauthorized")
+
+		err = qm.Delete(ctx, queueName)
+		require.EqualError(t, err, "request failed: 401 Unauthorized")
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		tm := ns.NewTopicManager()
+
+		_, err = tm.Get(ctx, "not-found-topic")
+		require.True(t, IsErrNotFound(err))
+
+		_, err = tm.Get(ctx, topicName)
+		require.EqualError(t, err, "request failed: 401 Unauthorized")
+
+		_, err = tm.Put(ctx, "canneverbecreated")
+		require.Contains(t, err.Error(), "error code: 401, Details: Authorization failed for specified action")
+
+		_, err = tm.List(ctx)
+		require.Contains(t, err.Error(), "error code: 401, Details: Manage,EntityRead claims required for this operation")
+
+		err = tm.Delete(ctx, topicName)
+		require.Contains(t, err.Error(), "request failed: 401 Unauthorized")
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		sm, err := ns.NewSubscriptionManager(topicName)
+		require.NoError(t, err)
+
+		_, err = sm.Get(ctx, "not-found-subscription")
+		require.Contains(t, err.Error(), "request failed: 401 SubCode=40100: Unauthorized")
+
+		_, err = sm.Get(ctx, subName)
+		require.Contains(t, err.Error(), "request failed: 401 SubCode=40100: Unauthorized")
+
+		_, err = sm.Put(ctx, subName)
+		require.Contains(t, err.Error(), "request failed: 401 SubCode=40100: Unauthorized")
+
+		err = sm.Delete(ctx, subName)
+		require.Contains(t, err.Error(), "request failed: 401 SubCode=40100: Unauthorized")
+
+		_, err = sm.List(ctx)
+		require.Contains(t, err.Error(), "request failed: 401 SubCode=40100: Unauthorized")
+
+		_, err = sm.ListRules(ctx, subName)
+		require.Contains(t, err.Error(), "request failed: 401 SubCode=40100: Unauthorized")
+
+	}()
+
+	wg.Wait()
 }

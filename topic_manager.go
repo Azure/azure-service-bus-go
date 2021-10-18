@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -93,7 +94,7 @@ func (tm *TopicManager) Delete(ctx context.Context, name string) error {
 	res, err := tm.entityManager.Delete(ctx, "/"+name)
 	defer closeRes(ctx, res)
 
-	return err
+	return checkForError(ctx, err, res)
 }
 
 // Put creates or updates a Service Bus Topic
@@ -200,13 +201,8 @@ func (tm *TopicManager) Get(ctx context.Context, name string) (*TopicEntity, err
 	res, err := tm.entityManager.Get(ctx, name)
 	defer closeRes(ctx, res)
 
-	if err != nil {
-		tab.For(ctx).Error(err)
+	if err := checkForError(ctx, err, res); err != nil {
 		return nil, err
-	}
-
-	if res.StatusCode == http.StatusNotFound {
-		return nil, ErrNotFound{EntityPath: res.Request.URL.Path}
 	}
 
 	b, err := ioutil.ReadAll(res.Body)
@@ -321,4 +317,26 @@ func TopicWithMessageTimeToLive(window *time.Duration) TopicManagementOption {
 		t.DefaultMessageTimeToLive = ptrString(durationTo8601Seconds(*window))
 		return nil
 	}
+}
+
+func checkForError(ctxForLogging context.Context, err error, res *http.Response) error {
+	if err != nil {
+		tab.For(ctxForLogging).Error(err)
+		return err
+	}
+
+	// check the response as well
+	if res.StatusCode == http.StatusNotFound {
+		err := ErrNotFound{EntityPath: res.Request.URL.Path}
+		tab.For(ctxForLogging).Error(err)
+		return err
+	}
+
+	if res.StatusCode >= 400 {
+		err := fmt.Errorf("request failed: %s", res.Status)
+		tab.For(ctxForLogging).Error(err)
+		return err
+	}
+
+	return nil
 }
