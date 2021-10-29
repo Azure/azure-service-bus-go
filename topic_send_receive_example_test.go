@@ -27,7 +27,7 @@ func Example_topicSendAndReceive() {
 	}
 
 	// Create a client to communicate with the topic. (The topic must have already been created, see `TopicManager`)
-	topic, err := ns.NewTopic("helloworld")
+	topic, err := ns.NewTopic("topic-name")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -39,4 +39,26 @@ func Example_topicSendAndReceive() {
 		fmt.Println("FATAL: ", err)
 		return
 	}
+
+	// Create a client to communicate with a topic subscription.
+	subscription, err := topic.NewSubscription("subscription-name")
+
+	if err != nil {
+		fmt.Println("FATAL: ", err)
+		return
+	}
+
+	// Listen the topic subscription to receive the message
+	err = subscription.ReceiveOne(
+		ctx,
+		servicebus.HandlerFunc(func(ctx context.Context, message *servicebus.Message) error {
+			fmt.Println(string(message.Data))
+			return message.Complete(ctx)
+		}))
+	if err != nil {
+		fmt.Println("FATAL: ", err)
+		return
+	}
+
+	// Output: Hello, World!!!
 }
