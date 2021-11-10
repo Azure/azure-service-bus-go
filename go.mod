@@ -1,3 +1,4 @@
+// Deprecated: The latest supported version of this library is at github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus
 module github.com/Azure/azure-service-bus-go
 
 go 1.12

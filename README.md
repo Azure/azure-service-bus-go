@@ -1,3 +1,6 @@
+**Please note, a newer package is available: [azservicebus](https://github.com/Azure/azure-sdk-for-go/blob/main/sdk/messaging/azservicebus/README.md) as of [2021-11-12].**
+**We strongly encourage you to upgrade. See the [Migration Guide](https://github.com/Azure/azure-sdk-for-go/blob/main/sdk/messaging/azservicebus/migrationguide.md/) for more details.**
+
 # Microsoft Azure Service Bus Client for Golang
 [![Go Report Card](https://goreportcard.com/badge/github.com/Azure/azure-service-bus-go)](https://goreportcard.com/report/github.com/Azure/azure-service-bus-go)
 [![godoc](https://godoc.org/github.com/Azure/azure-service-bus-go?status.svg)](https://godoc.org/github.com/Azure/azure-service-bus-go)
