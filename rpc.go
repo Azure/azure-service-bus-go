@@ -169,20 +169,26 @@ func (r *rpcClient) getCachedLink(ctx context.Context, address string) (*rpc.Lin
 	link, ok := r.linkCache[address]
 	r.clientMu.RUnlock()
 
-	if ok {
+	if ok && link.IsAlive() {
 		return link, nil
 	}
 
 	// possibly need to create the link
 	r.clientMu.Lock()
-	defer r.clientMu.Unlock()
 
 	// might have been added in between us checking and
 	// us getting the lock.
 	link, ok = r.linkCache[address]
+	r.clientMu.Unlock()
 
 	if ok {
-		return link, nil
+		if link.IsAlive() {
+			return link, nil
+		}
+		err := r.Recover(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	link, err := r.newRPCLink(r.client, address)
@@ -191,7 +197,9 @@ func (r *rpcClient) getCachedLink(ctx context.Context, address string) (*rpc.Lin
 		return nil, err
 	}
 
+	r.clientMu.Lock()
 	r.linkCache[address] = link
+	r.clientMu.Unlock()
 	return link, nil
 }
 
